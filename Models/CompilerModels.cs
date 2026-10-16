@@ -1,3 +1,6 @@
+using System.ComponentModel;
+using System.Windows;
+
 namespace MyCompiler.Models;
 
 public sealed record LanguageDefinition(
@@ -58,7 +61,7 @@ public sealed record RepoClassification(
     string? EntryPath = null,
     BuildPlan? Plan = null);
 
-public sealed class GitHubRepoItem
+public sealed class GitHubRepoItem : INotifyPropertyChanged
 {
     public required string FullName { get; init; }
     public required string Name { get; init; }
@@ -70,5 +73,35 @@ public sealed class GitHubRepoItem
     public required string HtmlUrl { get; init; }
     public string CategoryHint { get; init; } = "Auto-detect on install";
     public string CategoryColor { get; init; } = "#263F7DFF";
+
+    private bool _isDownloaded;
+    public bool IsDownloaded
+    {
+        get => _isDownloaded;
+        set
+        {
+            if (_isDownloaded != value)
+            {
+                _isDownloaded = value;
+                OnPropertyChanged(nameof(IsDownloaded));
+                OnPropertyChanged(nameof(DownloadedVisibility));
+                OnPropertyChanged(nameof(DownloadButtonText));
+                OnPropertyChanged(nameof(DownloadButtonTooltip));
+                OnPropertyChanged(nameof(CardBorderBrush));
+                OnPropertyChanged(nameof(CheckmarkBrush));
+                OnPropertyChanged(nameof(CheckmarkTooltip));
+            }
+        }
+    }
+
+    public Visibility DownloadedVisibility => IsDownloaded ? Visibility.Visible : Visibility.Collapsed;
+    public string DownloadButtonText => IsDownloaded ? "📂 Open Local" : "↓ Open Source";
+    public string DownloadButtonTooltip => IsDownloaded ? "Open already-downloaded local folder directly without re-downloading" : "Download and open in MyCompiler editor without executing";
+    public string CardBorderBrush => IsDownloaded ? "#4034D399" : "#26FFFFFF";
+    public string CheckmarkBrush => IsDownloaded ? "#4AE28D" : "#71829B";
+    public string CheckmarkTooltip => IsDownloaded ? "Marked as downloaded (click to unmark)" : "Click to mark as downloaded";
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+    private void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 }
 

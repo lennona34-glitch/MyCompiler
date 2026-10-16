@@ -34,6 +34,9 @@ public partial class MainWindow : Window
     private bool _suppressEditorEvents;
     private bool _isLoadingFile;
 
+    private readonly HashSet<string> _downloadedRepoHistory = new(StringComparer.OrdinalIgnoreCase);
+    private static string DownloadedHistoryFile => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyCompiler", "downloaded_repos.txt");
+
     public ObservableCollection<SourceFileItem> Files { get; } = [];
     public ObservableCollection<ToolchainStatus> Toolchains { get; } = [];
     public ObservableCollection<GitHubRepoItem> TrendingRepos { get; } = [];
@@ -42,6 +45,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = this;
+        LoadDownloadedHistory();
         LoadScratchDocument();
         _ = Task.Run(CleanOldScratchFolders);
         SourceEditor.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler(SourceEditor_ScrollChanged));
@@ -963,10 +967,106 @@ public partial class MainWindow : Window
         await ProcessGitHubUrlAsync(input, autoBuildAndRun);
     }
 
+    private void LoadDownloadedHistory()
+    {
+        try
+        {
+            if (File.Exists(DownloadedHistoryFile))
+            {
+                foreach (var line in File.ReadAllLines(DownloadedHistoryFile))
+                {
+                    var trimmed = line.Trim();
+                    if (!string.IsNullOrWhiteSpace(trimmed))
+                        _downloadedRepoHistory.Add(trimmed);
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void SaveDownloadedHistory(string repoFullName, bool isDownloaded)
+    {
+        try
+        {
+            if (isDownloaded)
+                _downloadedRepoHistory.Add(repoFullName);
+            else
+                _downloadedRepoHistory.Remove(repoFullName);
+
+            var dir = Path.GetDirectoryName(DownloadedHistoryFile)!;
+            Directory.CreateDirectory(dir);
+            File.WriteAllLines(DownloadedHistoryFile, _downloadedRepoHistory);
+        }
+        catch { }
+    }
+
+    private bool IsRepoDownloaded(string fullName, string name, string? owner = null)
+    {
+        if (_downloadedRepoHistory.Contains(fullName) || _downloadedRepoHistory.Contains(name))
+            return true;
+
+        var downloadFolder = GitHubService.DownloadsRoot;
+        if (!Directory.Exists(downloadFolder)) return false;
+
+        var candidates = new List<string>
+        {
+            Path.Combine(downloadFolder, name),
+            Path.Combine(downloadFolder, fullName.Replace('/', '_')),
+            Path.Combine(downloadFolder, fullName.Replace('/', '-'))
+        };
+        if (!string.IsNullOrWhiteSpace(owner))
+            candidates.Add(Path.Combine(downloadFolder, $"{owner}-{name}"));
+
+        return candidates.Any(dir => Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any());
+    }
+
+    private void UpdateRepoDownloadedState(GitHubRepoItem item)
+    {
+        item.IsDownloaded = IsRepoDownloaded(item.FullName, item.Name, item.Owner);
+    }
+
+    private void ToggleMarkDownloaded_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: GitHubRepoItem item })
+        {
+            item.IsDownloaded = !item.IsDownloaded;
+            SaveDownloadedHistory(item.FullName, item.IsDownloaded);
+            GitHubModalStatusText.Text = item.IsDownloaded
+                ? $"Marked '{item.FullName}' as downloaded."
+                : $"Unmarked '{item.FullName}'.";
+        }
+    }
+
     private async void TrendingCardOpenOnly_Click(object sender, RoutedEventArgs e)
     {
         if (sender is Button { Tag: string url })
+        {
+            var item = TrendingRepos.FirstOrDefault(r => r.HtmlUrl.Equals(url, StringComparison.OrdinalIgnoreCase));
+            if (item is not null && item.IsDownloaded)
+            {
+                var downloadFolder = GitHubService.DownloadsRoot;
+                var candidates = new List<string>
+                {
+                    Path.Combine(downloadFolder, item.Name),
+                    Path.Combine(downloadFolder, $"{item.Owner}-{item.Name}"),
+                    Path.Combine(downloadFolder, item.FullName.Replace('/', '_')),
+                    Path.Combine(downloadFolder, item.FullName.Replace('/', '-'))
+                };
+                var existing = candidates.FirstOrDefault(c => Directory.Exists(c) && Directory.EnumerateFileSystemEntries(c).Any());
+                if (existing is not null)
+                {
+                    GitHubOverlay.Visibility = Visibility.Collapsed;
+                    await OpenWorkspaceAsync(existing);
+                    OutputBox.Clear();
+                    AppendOutput($"Opened already-downloaded repository: {item.FullName}");
+                    AppendOutput($"Location: {existing}");
+                    SetOutputState(true, $"Opened {item.Name}");
+                    return;
+                }
+            }
+
             await ProcessGitHubUrlAsync(url, autoBuildAndRun: false);
+        }
     }
 
     private async void TrendingCardInstallRun_Click(object sender, RoutedEventArgs e)
@@ -988,7 +1088,10 @@ public partial class MainWindow : Window
             if (token.IsCancellationRequested) return;
             TrendingRepos.Clear();
             foreach (var item in items)
+            {
+                UpdateRepoDownloadedState(item);
                 TrendingRepos.Add(item);
+            }
             GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} runnable Windows apps & tools ({_trendingLanguage}). Click '⚡ Install & Run' to launch!";
         }
         catch (OperationCanceledException) { }
@@ -1011,7 +1114,10 @@ public partial class MainWindow : Window
             if (token.IsCancellationRequested) return;
             TrendingRepos.Clear();
             foreach (var item in items)
+            {
+                UpdateRepoDownloadedState(item);
                 TrendingRepos.Add(item);
+            }
             GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} Decompilation & Static Recompilation game ports ({_trendingLanguage}).";
         }
         catch (OperationCanceledException) { }
@@ -1034,7 +1140,10 @@ public partial class MainWindow : Window
             if (token.IsCancellationRequested) return;
             TrendingRepos.Clear();
             foreach (var item in items)
+            {
+                UpdateRepoDownloadedState(item);
                 TrendingRepos.Add(item);
+            }
             GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} Antigravity skills & MCP repositories ({_trendingLanguage}).";
         }
         catch (OperationCanceledException) { }
@@ -1057,7 +1166,10 @@ public partial class MainWindow : Window
             if (token.IsCancellationRequested) return;
             TrendingRepos.Clear();
             foreach (var item in items)
+            {
+                UpdateRepoDownloadedState(item);
                 TrendingRepos.Add(item);
+            }
             GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} trending repositories ({_trendingLanguage} · {_trendingSince}). Try '★ Windows Apps', '🎮 Decomp / Recomp', or '🤖 Antigravity / MCP'!";
         }
         catch (OperationCanceledException) { }
@@ -1096,7 +1208,10 @@ public partial class MainWindow : Window
             if (token.IsCancellationRequested) return;
             TrendingRepos.Clear();
             foreach (var item in items)
+            {
+                UpdateRepoDownloadedState(item);
                 TrendingRepos.Add(item);
+            }
             GitHubModalStatusText.Text = $"Found {TrendingRepos.Count} repositories matching '{query}'.";
         }
         catch (OperationCanceledException) { }
@@ -1132,6 +1247,14 @@ public partial class MainWindow : Window
             {
                 SetOutputState(false, "Cancelled");
                 return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(repoFullName))
+            {
+                SaveDownloadedHistory(repoFullName, isDownloaded: true);
+                var match = TrendingRepos.FirstOrDefault(r => r.FullName.Equals(repoFullName, StringComparison.OrdinalIgnoreCase));
+                if (match is not null)
+                    match.IsDownloaded = true;
             }
 
             if (isSingleFile)
