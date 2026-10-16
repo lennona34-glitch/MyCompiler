@@ -113,6 +113,18 @@ public partial class MainWindow : Window
         ApplyExplorerFilter();
         FileCountText.Text = $"{_allFiles.Count:N0} source files";
 
+        var skills = FindSkillFiles(_workspaceRoot);
+        if (skills.Count > 0)
+        {
+            InstallSkillButton.Visibility = Visibility.Visible;
+            InstallSkillButton.Content = skills.Count > 1 ? $"🤖  Install {skills.Count} Skills" : "🤖  Install Skill";
+            InstallSkillButton.ToolTip = $"Install {skills.Count} detected agent skill(s) to ~/.gemini/config/skills/";
+        }
+        else
+        {
+            InstallSkillButton.Visibility = Visibility.Collapsed;
+        }
+
         if (_currentFile is null || _isScratchFile || !_currentFile.StartsWith(_workspaceRoot, StringComparison.OrdinalIgnoreCase))
         {
             var classification = await Task.Run(() => GitHubService.ClassifyWorkspace(_workspaceRoot, _compiler));
@@ -226,6 +238,7 @@ public partial class MainWindow : Window
         _allFiles.Clear();
         ApplyExplorerFilter();
         FileCountText.Text = "0 source files";
+        InstallSkillButton.Visibility = Visibility.Collapsed;
         LoadScratchDocument();
         OutputBox.Clear();
         AppStatusText.Text = "Ready";
@@ -1169,6 +1182,20 @@ public partial class MainWindow : Window
             }
 
             // Automated handling based on RepoKind
+            var detectedSkills = FindSkillFiles(downloadedPath);
+            if (detectedSkills.Count > 0)
+            {
+                AppendOutput(string.Empty);
+                AppendOutput($"🤖 Detected {detectedSkills.Count} Antigravity Agent Skill(s) in repository.");
+                AppendOutput("› Auto-installing skill(s) into your personal Antigravity library (~/.gemini/config/skills/)…");
+                var installedList = await InstallSkillsFromDirectoryAsync(downloadedPath);
+                if (classification.Kind == RepoKind.DocsOrData || (classification.Kind == RepoKind.LibraryOrSdk && classification.Plan is null))
+                {
+                    SetOutputState(true, $"Installed {installedList.Count} Skill(s)");
+                    return;
+                }
+            }
+
             if (classification.Kind == RepoKind.DocsOrData)
             {
                 AppendOutput(string.Empty);
@@ -1315,6 +1342,248 @@ public partial class MainWindow : Window
         OutputBox.Clear();
         OutputSummaryText.Text = "Ready";
         OutputStatusDot.Fill = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#5B6980"));
+    }
+
+    private async void InstallSkillButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (string.IsNullOrWhiteSpace(_workspaceRoot) || !Directory.Exists(_workspaceRoot))
+            return;
+        await InstallSkillsFromDirectoryAsync(_workspaceRoot);
+    }
+
+    private List<string> FindSkillFiles(string root)
+    {
+        var results = new List<string>();
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return results;
+
+        try
+        {
+            var stack = new Stack<string>();
+            stack.Push(root);
+
+            while (stack.Count > 0)
+            {
+                var dir = stack.Pop();
+                try
+                {
+                    foreach (var sub in Directory.EnumerateDirectories(dir))
+                    {
+                        var name = Path.GetFileName(sub);
+                        if (!IgnoredDirectories.Contains(name) &&
+                            !name.Equals("BuildCache", StringComparison.OrdinalIgnoreCase) &&
+                            !name.Equals("Downloads", StringComparison.OrdinalIgnoreCase))
+                        {
+                            stack.Push(sub);
+                        }
+                    }
+
+                    foreach (var file in Directory.EnumerateFiles(dir))
+                    {
+                        var name = Path.GetFileName(file);
+                        if (name.Equals("SKILL.md", StringComparison.OrdinalIgnoreCase) ||
+                            name.Equals("skill.md", StringComparison.OrdinalIgnoreCase) ||
+                            name.Equals("skills.md", StringComparison.OrdinalIgnoreCase))
+                        {
+                            results.Add(file);
+                        }
+                    }
+                }
+                catch
+                {
+                    // Ignore access issues for restricted subdirectories
+                }
+            }
+        }
+        catch
+        {
+            // Ignore directory enumeration failures
+        }
+
+        return results;
+    }
+
+    private async Task<List<string>> InstallSkillsFromDirectoryAsync(string rootPath)
+    {
+        var installed = new List<string>();
+        if (string.IsNullOrWhiteSpace(rootPath) || !Directory.Exists(rootPath)) return installed;
+
+        var skillFiles = FindSkillFiles(rootPath);
+        if (skillFiles.Count == 0)
+        {
+            AppendOutput("MyCompiler: No SKILL.md or skills.md files found in this workspace.");
+            return installed;
+        }
+
+        var globalSkillsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini", "config", "skills");
+        Directory.CreateDirectory(globalSkillsDir);
+
+        AppendOutput(string.Empty);
+        AppendOutput($"🤖 MyCompiler Skill Installer · Found {skillFiles.Count} skill(s)");
+        AppendOutput(new string('─', 70));
+
+        await Task.Run(() =>
+        {
+            foreach (var skillFile in skillFiles)
+            {
+                try
+                {
+                    var skillName = ExtractSkillName(skillFile, rootPath);
+                    var targetDir = Path.Combine(globalSkillsDir, skillName);
+                    Directory.CreateDirectory(targetDir);
+
+                    var sourceFolder = Path.GetDirectoryName(skillFile)!;
+                    var isDedicatedFolder = !sourceFolder.Equals(Path.GetFullPath(rootPath).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase);
+
+                    if (isDedicatedFolder)
+                    {
+                        CopyDirectory(sourceFolder, targetDir);
+                    }
+                    else
+                    {
+                        var destFile = Path.Combine(targetDir, "SKILL.md");
+                        File.Copy(skillFile, destFile, overwrite: true);
+                    }
+
+                    var targetSkillMd = Path.Combine(targetDir, "SKILL.md");
+                    if (!File.Exists(targetSkillMd))
+                    {
+                        var existingMd = Directory.GetFiles(targetDir, "*.md", SearchOption.TopDirectoryOnly)
+                            .FirstOrDefault(f => Path.GetFileName(f).Equals("skills.md", StringComparison.OrdinalIgnoreCase) ||
+                                                 Path.GetFileName(f).Equals("skill.md", StringComparison.OrdinalIgnoreCase));
+                        if (existingMd is not null)
+                            File.Move(existingMd, targetSkillMd, overwrite: true);
+                    }
+
+                    EnsureSkillFrontmatter(targetSkillMd, skillName);
+
+                    installed.Add(skillName);
+                    Dispatcher.Invoke(() =>
+                    {
+                        AppendOutput($"✓ Installed '{skillName}'");
+                        AppendOutput($"  Target: {targetDir}");
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Dispatcher.Invoke(() => AppendOutput($"✕ Failed to install {Path.GetFileName(skillFile)}: {ex.Message}"));
+                }
+            }
+        });
+
+        if (installed.Count > 0)
+        {
+            AppendOutput(string.Empty);
+            AppendOutput($"★ {installed.Count} skill(s) ready in Antigravity!");
+            AppendOutput($"  Location: {globalSkillsDir}");
+            AppendOutput($"  Antigravity will automatically index and activate them when relevant.");
+            SetOutputState(true, $"Installed {installed.Count} Skill(s)");
+            AppStatusText.Text = $"Installed {installed.Count} Skill(s) to ~/.gemini/config/skills/";
+        }
+
+        return installed;
+    }
+
+    private static string ExtractSkillName(string skillFilePath, string rootPath)
+    {
+        try
+        {
+            if (File.Exists(skillFilePath))
+            {
+                var lines = File.ReadLines(skillFilePath).Take(25).ToList();
+                if (lines.Count > 0 && lines[0].Trim() == "---")
+                {
+                    for (int i = 1; i < lines.Count; i++)
+                    {
+                        var line = lines[i].Trim();
+                        if (line == "---") break;
+                        if (line.StartsWith("name:", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var raw = line.Substring(5).Trim().Trim('"', '\'');
+                            var sanitized = Regex.Replace(raw, @"[^a-zA-Z0-9_\-]", "-").Trim('-').ToLowerInvariant();
+                            if (!string.IsNullOrWhiteSpace(sanitized))
+                                return sanitized;
+                        }
+                    }
+                }
+            }
+        }
+        catch { }
+
+        var parentFolder = Path.GetFileName(Path.GetDirectoryName(skillFilePath)!);
+        if (!string.IsNullOrWhiteSpace(parentFolder) &&
+            !parentFolder.Equals("src", StringComparison.OrdinalIgnoreCase) &&
+            !parentFolder.Equals("skills", StringComparison.OrdinalIgnoreCase) &&
+            !parentFolder.Equals(Path.GetFileName(rootPath), StringComparison.OrdinalIgnoreCase))
+        {
+            var sanitizedFolder = Regex.Replace(parentFolder, @"[^a-zA-Z0-9_\-]", "-").Trim('-').ToLowerInvariant();
+            if (!string.IsNullOrWhiteSpace(sanitizedFolder))
+                return sanitizedFolder;
+        }
+
+        var rootFolder = Path.GetFileName(rootPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        var sanitizedRoot = Regex.Replace(rootFolder, @"[^a-zA-Z0-9_\-]", "-").Trim('-').ToLowerInvariant();
+        return string.IsNullOrWhiteSpace(sanitizedRoot) ? "custom-skill" : sanitizedRoot;
+    }
+
+    private static void EnsureSkillFrontmatter(string filePath, string skillName)
+    {
+        if (!File.Exists(filePath)) return;
+        try
+        {
+            var content = File.ReadAllText(filePath);
+            if (!content.TrimStart().StartsWith("---"))
+            {
+                var desc = $"Agent skill for {skillName}";
+                var lines = content.Split('\n');
+                var heading = lines.FirstOrDefault(l => l.Trim().StartsWith("#"))?.Trim('#', ' ', '\r');
+                if (!string.IsNullOrWhiteSpace(heading))
+                    desc = heading;
+
+                var frontmatter = $"---\nname: {skillName}\ndescription: {desc}\n---\n\n";
+                File.WriteAllText(filePath, frontmatter + content);
+            }
+            else
+            {
+                var endIndex = content.IndexOf("\n---", 3, StringComparison.Ordinal);
+                if (endIndex > 0)
+                {
+                    var header = content.Substring(0, endIndex);
+                    if (!header.Contains("name:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        var updatedHeader = header.Insert(4, $"name: {skillName}\n");
+                        File.WriteAllText(filePath, updatedHeader + content.Substring(endIndex));
+                    }
+                }
+            }
+        }
+        catch { }
+    }
+
+    private static void CopyDirectory(string sourceDir, string destinationDir)
+    {
+        Directory.CreateDirectory(destinationDir);
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir))
+        {
+            var fileName = Path.GetFileName(file);
+            var destPath = Path.Combine(destinationDir, fileName);
+            File.Copy(file, destPath, overwrite: true);
+        }
+
+        foreach (var subDir in Directory.EnumerateDirectories(sourceDir))
+        {
+            var subDirName = Path.GetFileName(subDir);
+            if (subDirName.Equals(".git", StringComparison.OrdinalIgnoreCase) ||
+                subDirName.Equals("bin", StringComparison.OrdinalIgnoreCase) ||
+                subDirName.Equals("obj", StringComparison.OrdinalIgnoreCase) ||
+                subDirName.Equals("node_modules", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var destSubDir = Path.Combine(destinationDir, subDirName);
+            CopyDirectory(subDir, destSubDir);
+        }
     }
 
     private void Root_DragOver(object sender, DragEventArgs e)

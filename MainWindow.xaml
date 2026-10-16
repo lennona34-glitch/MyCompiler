@@ -160,6 +160,9 @@
                                             ToolTip="Browse GitHub Trending or paste any GitHub file/repo URL to install, build &amp; run automatically" Click="GitHubHubButton_Click" />
                                     <Button x:Name="DecompileButton" Style="{StaticResource GlassButton}" Content="⇲  Decompile" Margin="0,0,8,0"
                                             ToolTip="Decompile an .exe, .dll, .apk or .jar (or drop one onto the window)" Click="DecompileButton_Click" />
+                                    <Button x:Name="InstallSkillButton" Style="{StaticResource GlassButton}" Content="🤖  Install Skill" Margin="0,0,8,0"
+                                            Background="#2A0E8A7A" BorderBrush="#3CE8D0" Foreground="#6AFFF0" Visibility="Collapsed"
+                                            ToolTip="Install this skill to your personal Antigravity library (~/.gemini/config/skills/)" Click="InstallSkillButton_Click" />
                                     <Button x:Name="BuildButton" Style="{StaticResource GlassButton}" Content="Build  F6" Click="BuildButton_Click" />
                                     <Button x:Name="RunButton" Style="{StaticResource PrimaryButton}" Content="▶  Build &amp; run  F5" Margin="8,0,0,0" Click="RunButton_Click" />
                                     <Button x:Name="StopButton" Style="{StaticResource GlassButton}" Content="■" Width="42" Margin="8,0,0,0"
