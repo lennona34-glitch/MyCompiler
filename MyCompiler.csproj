@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net9.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <AssemblyName>MyCompiler</AssemblyName>
+    <RootNamespace>MyCompiler</RootNamespace>
+    <Version>1.4.0</Version>
+    <Authors>MyCompiler</Authors>
+    <Product>MyCompiler</Product>
+    <Description>A beautiful universal compiler workbench for Windows.</Description>
+    <ApplicationIcon>Assets\mycompiler.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\compiler-art.png" />
+    <EmbeddedResource Include="Assets\Ghidra\MyCompilerExportC.java" LogicalName="MyCompilerExportC.java" />
+    <EmbeddedResource Include="Tools\Install-Decompilers.ps1" LogicalName="Install-Decompilers.ps1" />
+    <Compile Remove="Assets\Ghidra\**" />
+  </ItemGroup>
+
+</Project>

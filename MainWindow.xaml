@@ -1,0 +1,551 @@
+<Window x:Class="MyCompiler.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        mc:Ignorable="d"
+        Title="MyCompiler" Width="1440" Height="900" MinWidth="1080" MinHeight="680"
+        WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize"
+        Background="#060B14" Foreground="{StaticResource TextPrimary}"
+        FontFamily="Segoe UI Variable Text, Segoe UI" PreviewKeyDown="Window_PreviewKeyDown"
+        Closing="Window_Closing">
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CaptionHeight="0" ResizeBorderThickness="7" CornerRadius="11" GlassFrameThickness="0" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Border x:Name="OuterChromeBorder" BorderBrush="#4AFFFFFF" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
+        <Grid AllowDrop="True" Drop="Root_Drop" DragOver="Root_DragOver">
+            <Grid.Background>
+                <ImageBrush ImageSource="/Assets/compiler-art.png" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center" />
+            </Grid.Background>
+            <Rectangle Fill="#A8070D18" />
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="54" />
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="29" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0" Background="#D2070C15" BorderBrush="#26FFFFFF" BorderThickness="0,0,0,1"
+                        MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="252" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                            <Border Width="31" Height="31" CornerRadius="9" Margin="0,0,10,0">
+                                <Border.Background>
+                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                        <GradientStop Color="#7DEBFF" Offset="0" />
+                                        <GradientStop Color="#4E6BFF" Offset="0.58" />
+                                        <GradientStop Color="#9E62FF" Offset="1" />
+                                    </LinearGradientBrush>
+                                </Border.Background>
+                                <TextBlock Text="M" Foreground="#07101B" FontWeight="Black" FontSize="18"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock Text="MyCompiler" FontWeight="Bold" FontSize="15" />
+                                <TextBlock Text="UNIVERSAL WORKBENCH" Foreground="#71819B" FontSize="8" FontWeight="SemiBold" />
+                            </StackPanel>
+                        </StackPanel>
+                        <TextBlock x:Name="TitlePathText" Grid.Column="1" Text="Untitled" Foreground="#8190A9"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center" FontSize="12" TextTrimming="CharacterEllipsis" />
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="0,0,6,0">
+                            <Button x:Name="FullScreenButton" Style="{StaticResource IconButton}" Content="⛶" BorderThickness="0" Background="Transparent"
+                                    ToolTip="Toggle Full Screen (F11)" Click="FullScreenButton_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+                            <Button Style="{StaticResource IconButton}" Content="—" BorderThickness="0" Background="Transparent"
+                                    ToolTip="Minimize" Click="MinimizeButton_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+                            <Button Style="{StaticResource IconButton}" Content="□" BorderThickness="0" Background="Transparent"
+                                    ToolTip="Maximize" Click="MaximizeButton_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+                            <Button x:Name="CloseButton" Style="{StaticResource IconButton}" Content="×" BorderThickness="0" Background="Transparent"
+                                    FontSize="20" ToolTip="Close" Click="CloseButton_Click" shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="252" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Background="#D708111E" BorderBrush="#24FFFFFF" BorderThickness="0,0,1,0">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="WORKSPACE" Foreground="#7F8DA7" FontWeight="Bold" FontSize="10"
+                                       Margin="18,17,18,10" />
+                            <Grid Grid.Row="1" Margin="14,0,14,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="7" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button Grid.Column="0" Style="{StaticResource GlassButton}" Content="Open file" Click="OpenFileButton_Click" />
+                                <Button Grid.Column="2" Style="{StaticResource GlassButton}" Content="Open folder" Click="OpenFolderButton_Click" />
+                            </Grid>
+                            <TextBox x:Name="ExplorerSearchBox" Grid.Row="2" Margin="14,0,14,8" FontSize="12"
+                                     ToolTip="Filter files" TextChanged="ExplorerSearchBox_TextChanged" />
+                            <ListBox x:Name="SourceExplorerList" Grid.Row="3" ItemsSource="{Binding Files}"
+                                     BorderThickness="0" Background="Transparent" SelectionChanged="SourceExplorerList_SelectionChanged"
+                                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid ToolTip="{Binding FullPath}">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="34" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Grid.Column="0" Width="27" Height="23" CornerRadius="5" Background="#273E85FF"
+                                                    HorizontalAlignment="Left">
+                                                <TextBlock Text="{Binding Extension}" FontSize="8" FontWeight="Bold" Foreground="#9CE8FF"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding FileName}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{Binding RelativePath}" FontSize="9" Foreground="#63718A" TextTrimming="CharacterEllipsis" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Border Grid.Row="4" BorderBrush="#20FFFFFF" BorderThickness="0,1,0,0" Padding="15,11">
+                                <StackPanel>
+                                    <TextBlock x:Name="WorkspaceNameText" Text="No folder open" FontSize="11" Foreground="#9CA9BD" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock x:Name="FileCountText" Text="Drop a file or folder here" FontSize="9" Foreground="#5E6F8A" Margin="0,3,0,0" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+                    </Border>
+
+                    <Grid Grid.Column="1">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="63" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="238" />
+                        </Grid.RowDefinitions>
+
+                        <Border Grid.Row="0" Background="#B90B1422" BorderBrush="#25FFFFFF" BorderThickness="0,0,0,1">
+                            <Grid Margin="16,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button Style="{StaticResource IconButton}" Content="＋" ToolTip="New file (Ctrl+N)" Click="NewFileButton_Click" />
+                                    <Button Style="{StaticResource IconButton}" Content="↓" ToolTip="Save (Ctrl+S)" Margin="7,0,0,0" Click="SaveButton_Click" />
+                                    <Border Background="#263F7DFF" BorderBrush="#384C9FFF" BorderThickness="1" CornerRadius="10"
+                                            Padding="11,6" Margin="12,0,0,0">
+                                        <TextBlock x:Name="LanguageBadgeText" Text="C# scratch" Foreground="#AEEBFF" FontSize="11" FontWeight="SemiBold" />
+                                    </Border>
+                                </StackPanel>
+                                <TextBox x:Name="FindBox" Grid.Column="1" Width="210" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                         Margin="0,0,15,0" FontSize="11" ToolTip="Find in source (Ctrl+F)" KeyDown="FindBox_KeyDown" />
+                                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <Button x:Name="NewSessionButton" Style="{StaticResource GlassButton}" Content="⟲  New" Margin="0,0,8,0"
+                                            ToolTip="Start fresh: clear the console, close the folder and reset the editor" Click="NewSessionButton_Click" />
+                                    <Button x:Name="GitHubHubButton" Style="{StaticResource GlassButton}" Content="⚡  GitHub" Margin="0,0,8,0"
+                                            Background="#2A3E78FF" BorderBrush="#649BFF"
+                                            ToolTip="Browse GitHub Trending or paste any GitHub file/repo URL to install, build &amp; run automatically" Click="GitHubHubButton_Click" />
+                                    <Button x:Name="DecompileButton" Style="{StaticResource GlassButton}" Content="⇲  Decompile" Margin="0,0,8,0"
+                                            ToolTip="Decompile an .exe, .dll, .apk or .jar (or drop one onto the window)" Click="DecompileButton_Click" />
+                                    <Button x:Name="BuildButton" Style="{StaticResource GlassButton}" Content="Build  F6" Click="BuildButton_Click" />
+                                    <Button x:Name="RunButton" Style="{StaticResource PrimaryButton}" Content="▶  Build &amp; run  F5" Margin="8,0,0,0" Click="RunButton_Click" />
+                                    <Button x:Name="StopButton" Style="{StaticResource GlassButton}" Content="■" Width="42" Margin="8,0,0,0"
+                                            IsEnabled="False" ToolTip="Stop" Click="StopButton_Click" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <Grid Grid.Row="1">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="266" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0" Margin="12,12,7,10" CornerRadius="11" BorderBrush="#30FFFFFF" BorderThickness="1"
+                                    Background="#D1060C15" ClipToBounds="True">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="38" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Border Grid.Row="0" Background="#B8111A2A" BorderBrush="#22FFFFFF" BorderThickness="0,0,0,1">
+                                        <Grid Margin="14,0">
+                                            <TextBlock x:Name="EditorTabText" Text="welcome.cs" VerticalAlignment="Center" FontSize="11" Foreground="#DDE6F5" />
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                <Ellipse x:Name="DirtyDot" Width="7" Height="7" Fill="#FFB86B" Visibility="Collapsed" Margin="0,0,8,0" />
+                                                <TextBlock Text="UTF-8" Foreground="#5F6E86" FontSize="9" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                    <Grid Grid.Row="1">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="47" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Grid.Column="0" Background="#7A09111E" BorderBrush="#1FFFFFFF" BorderThickness="0,0,1,0">
+                                            <ScrollViewer x:Name="LineNumberScroll" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled"
+                                                          IsHitTestVisible="False">
+                                                <TextBlock x:Name="LineNumbersText" Text="1" FontFamily="Cascadia Mono, Consolas" FontSize="14"
+                                                           Foreground="#45536B" TextAlignment="Right" Margin="0,11,9,40" />
+                                            </ScrollViewer>
+                                        </Border>
+                                        <TextBox x:Name="SourceEditor" Grid.Column="1" AcceptsReturn="True" AcceptsTab="True"
+                                                 VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto"
+                                                 TextWrapping="NoWrap" FontFamily="Cascadia Code, Cascadia Mono, Consolas" FontSize="14"
+                                                 Padding="14,10,20,50" Background="#72040A12" BorderThickness="0"
+                                                 TextChanged="SourceEditor_TextChanged" SelectionChanged="SourceEditor_SelectionChanged" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <Border Grid.Column="1" Margin="7,12,12,10" CornerRadius="11" BorderBrush="#30FFFFFF" BorderThickness="1"
+                                    Background="#D20B1422" ClipToBounds="True">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="52" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+                                    <Grid Grid.Row="0" Margin="14,0">
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="TOOLCHAINS" FontSize="10" FontWeight="Bold" Foreground="#8594AD" />
+                                            <TextBlock x:Name="ToolchainSummaryText" Text="Scanning this PC…" FontSize="9" Foreground="#586981" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource IconButton}" Content="PATH" Width="44" Height="29" FontSize="8"
+                                                    ToolTip="Run the read-only PATH Doctor" Click="PathDoctorButton_Click" />
+                                            <Button Style="{StaticResource IconButton}" Content="↻" Width="31" Height="29" Margin="5,0,0,0"
+                                                    ToolTip="Refresh toolchains" Click="RefreshToolchainsButton_Click" />
+                                        </StackPanel>
+                                    </Grid>
+                                    <Border Grid.Row="1" Margin="12,0,12,9" CornerRadius="8" Background="#162FE06F" BorderBrush="#263FE889" BorderThickness="1" Padding="9,7">
+                                        <TextBlock Text="MyCompiler uses the compilers already installed on your PC." Foreground="#8EDCAB" FontSize="9" TextWrapping="Wrap" />
+                                    </Border>
+                                    <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                                        <ItemsControl ItemsSource="{Binding Toolchains}" Margin="9,0,9,10">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="7" Padding="8,7" Margin="0,1">
+                                                        <Border.Style>
+                                                            <Style TargetType="Border">
+                                                                <Setter Property="Background" Value="#0CFFFFFF" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding IsAvailable}" Value="True">
+                                                                        <Setter Property="Background" Value="#1228D97A" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </Border.Style>
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Margin="0,0,7,0">
+                                                                <TextBlock Text="{Binding Name}" Foreground="#D6DDEA" FontSize="10" FontWeight="SemiBold" />
+                                                                <TextBlock Text="{Binding Tool}" Foreground="#71809A" FontSize="8" Margin="0,2,0,0"
+                                                                           ToolTip="{Binding ResolvedPath}" TextTrimming="CharacterEllipsis" />
+                                                                <TextBlock Text="{Binding Detail}" Foreground="#52627A" FontSize="8" Margin="0,2,0,0" TextWrapping="Wrap" />
+                                                                <Border Background="#14000000" BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="5"
+                                                                        Padding="5,4" Margin="0,5,0,0">
+                                                                    <Grid>
+                                                                        <Grid.ColumnDefinitions>
+                                                                            <ColumnDefinition Width="*" />
+                                                                            <ColumnDefinition Width="Auto" />
+                                                                        </Grid.ColumnDefinitions>
+                                                                        <TextBlock Text="{Binding SuggestedCommand}" Foreground="#8090A8" FontFamily="Cascadia Mono, Consolas"
+                                                                                   FontSize="7" TextWrapping="Wrap" ToolTip="{Binding SuggestedCommand}" />
+                                                                        <Button Grid.Column="1" Style="{StaticResource GlassButton}" Content="{Binding ActionLabel}"
+                                                                                Tag="{Binding SuggestedCommand}" Click="CopyToolchainCommandButton_Click"
+                                                                                FontSize="7" Padding="6,3" Margin="5,0,0,0" VerticalAlignment="Center" />
+                                                                    </Grid>
+                                                                </Border>
+                                                            </StackPanel>
+                                                            <Border Grid.Column="1" Width="8" Height="8" CornerRadius="4" VerticalAlignment="Top" Margin="0,4,0,0">
+                                                                <Border.Style>
+                                                                    <Style TargetType="Border">
+                                                                        <Setter Property="Background" Value="#435065" />
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding IsAvailable}" Value="True">
+                                                                                <Setter Property="Background" Value="#45E18D" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Border.Style>
+                                                            </Border>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+                        </Grid>
+
+                        <Border Grid.Row="2" Margin="12,0,12,12" CornerRadius="11" BorderBrush="#30FFFFFF" BorderThickness="1"
+                                Background="#E2060B13" ClipToBounds="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="41" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="40" />
+                                </Grid.RowDefinitions>
+                                <Border Grid.Row="0" Background="#B9121B2A" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1">
+                                    <Grid Margin="13,0">
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Ellipse x:Name="OutputStatusDot" Width="8" Height="8" Fill="#5B6980" Margin="0,0,9,0" />
+                                            <TextBlock Text="BUILD OUTPUT" FontSize="10" FontWeight="Bold" Foreground="#8998B0" />
+                                            <TextBlock x:Name="OutputSummaryText" Text="Ready" FontSize="9" Foreground="#52627A" Margin="10,0,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource IconButton}" Content="Copy" Width="48" Height="27" FontSize="9" Click="CopyOutputButton_Click" />
+                                            <Button Style="{StaticResource IconButton}" Content="Clear" Width="48" Height="27" FontSize="9" Margin="6,0,0,0" Click="ClearOutputButton_Click" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <TextBox x:Name="OutputBox" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True" TextWrapping="NoWrap"
+                                         VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" BorderThickness="0"
+                                         Background="#A002070D" Foreground="#B9C9DD" FontFamily="Cascadia Mono, Consolas" FontSize="11"
+                                         Padding="13,9" />
+                                <Grid Grid.Row="2" Background="#8A0D1522">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" Text="&gt;_" Foreground="#64DBFF" FontFamily="Consolas" FontWeight="Bold"
+                                               Margin="13,0,9,0" VerticalAlignment="Center" />
+                                    <TextBox x:Name="CustomCommandBox" Grid.Column="1" BorderThickness="0" Background="Transparent" Padding="4,5"
+                                             FontFamily="Cascadia Mono, Consolas" FontSize="11" ToolTip="Custom command, for example: deno check app.ts"
+                                             KeyDown="CustomCommandBox_KeyDown" />
+                                    <Button Grid.Column="2" Style="{StaticResource GlassButton}" Content="Run command" Margin="7,5,7,5"
+                                            Padding="12,3" FontSize="10" Click="RunCustomCommandButton_Click" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </Grid>
+
+                    <!-- GitHub Hub Modal Drawer Overlay -->
+                    <Border x:Name="GitHubOverlay" Grid.ColumnSpan="2" Background="#D8040811" Visibility="Collapsed"
+                            MouseLeftButtonDown="GitHubOverlay_BackdropClick">
+                        <Border Width="980" MaxHeight="740" Margin="32" CornerRadius="14" BorderBrush="#4879B8FF" BorderThickness="1"
+                                Background="#F4091220" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                MouseLeftButtonDown="GitHubModalCard_MouseLeftButtonDown" ClipToBounds="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Modal Header -->
+                                <Border Grid.Row="0" Background="#B8101C30" BorderBrush="#26FFFFFF" BorderThickness="0,0,0,1" Padding="20,14">
+                                    <Grid>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Width="30" Height="30" CornerRadius="8" Background="#2D4A9EFF" BorderBrush="#64A5FF" BorderThickness="1" Margin="0,0,12,0">
+                                                <TextBlock Text="⚡" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="GitHub Instant Fetch, Build &amp; Run" FontSize="15" FontWeight="Bold" Foreground="#F2F7FF" />
+                                                <TextBlock Text="Paste any GitHub repository, source file, or Gist — or pick from Trending below. Zero command-line needed."
+                                                           FontSize="10" Foreground="#8395B2" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Button Style="{StaticResource IconButton}" Content="✕" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                ToolTip="Close GitHub Hub (Esc)" Click="CloseGitHubOverlay_Click" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Direct GitHub URL / Repo / Search Bar -->
+                                <Border Grid.Row="1" Background="#7A0B1526" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1" Padding="20,14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Grid Grid.Column="0">
+                                            <TextBox x:Name="GitHubUrlBox" FontSize="12" Padding="12,9"
+                                                     ToolTip="Paste a GitHub URL, owner/repo shorthand, OR type any search keyword (e.g. 'Antigravity', 'Zelda64Recomp') and press Enter"
+                                                     KeyDown="GitHubUrlBox_KeyDown" />
+                                            <TextBlock Text="Paste GitHub URL / owner/repo — OR type any search keyword (e.g. Antigravity, N64Recomp) &amp; press Enter…"
+                                                       Foreground="#556680" FontSize="11" Margin="14,0,0,0" VerticalAlignment="Center"
+                                                       IsHitTestVisible="False">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=GitHubUrlBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+                                        <Button Grid.Column="1" Style="{StaticResource GlassButton}" Content="↓  Fetch &amp; Open" Margin="10,0,0,0"
+                                                ToolTip="Download into MyCompiler workspace without running immediately (or search if a keyword is typed)"
+                                                Click="GitHubFetchOnlyButton_Click" />
+                                        <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="▶  Install, Build &amp; Run" Margin="8,0,0,0"
+                                                ToolTip="Automatically download, classify, build (or grab Windows release binary), and launch"
+                                                Click="GitHubInstallAndRunUrlButton_Click" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Trending & Category Feed Filter Bar -->
+                                <Border Grid.Row="2" Padding="20,11" BorderBrush="#1AFFFFFF" BorderThickness="0,0,0,1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="FEED" FontSize="10" FontWeight="Bold" Foreground="#7CE8FF" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                            <Button x:Name="TrendDailyBtn" Style="{StaticResource GlassButton}" Content="Today" Padding="8,5" FontSize="10" Tag="daily" Click="TrendingSinceButton_Click" />
+                                            <Button x:Name="TrendWeeklyBtn" Style="{StaticResource GlassButton}" Content="Week" Padding="8,5" FontSize="10" Margin="4,0,0,0" Tag="weekly" Click="TrendingSinceButton_Click" />
+                                            <Button x:Name="TrendMonthlyBtn" Style="{StaticResource GlassButton}" Content="Month" Padding="8,5" FontSize="10" Margin="4,0,0,0" Tag="monthly" Click="TrendingSinceButton_Click" />
+                                            <Button x:Name="WindowsAppsBtn" Style="{StaticResource GlassButton}" Content="★ Windows Apps" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                                    Background="#261B8A5A" BorderBrush="#45E18D"
+                                                    ToolTip="Show runnable Windows desktop apps, tools &amp; games on GitHub"
+                                                    Click="WindowsAppsFeedButton_Click" />
+                                            <Button x:Name="DecompGamesBtn" Style="{StaticResource GlassButton}" Content="🎮 Decomp / Recomp" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                                    Background="#2EC85A17" BorderBrush="#FF9248"
+                                                    ToolTip="Show Decompilation &amp; Static Recompilation game ports (N64Recomp, Zelda64, Shipwright, SM64, etc.)"
+                                                    Click="DecompRecompFeedButton_Click" />
+                                            <Button x:Name="AntigravityMcpBtn" Style="{StaticResource GlassButton}" Content="🤖 Antigravity / MCP" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                                    Background="#2E0E8A7A" BorderBrush="#3CE8D0"
+                                                    ToolTip="Show Antigravity skills, plugins &amp; MCP servers"
+                                                    Click="AntigravityMcpFeedButton_Click" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                                            <TextBlock Text="Lang:" FontSize="10" Foreground="#7A8AA6" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                            <Button Style="{StaticResource GlassButton}" Content="All" Padding="7,4" FontSize="10" Tag="all" Click="TrendingLangButton_Click" />
+                                            <Button Style="{StaticResource GlassButton}" Content="C#" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="c#" Click="TrendingLangButton_Click" />
+                                            <Button Style="{StaticResource GlassButton}" Content="Python" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="python" Click="TrendingLangButton_Click" />
+                                            <Button Style="{StaticResource GlassButton}" Content="Rust" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="rust" Click="TrendingLangButton_Click" />
+                                            <Button Style="{StaticResource GlassButton}" Content="Go" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="go" Click="TrendingLangButton_Click" />
+                                            <Button Style="{StaticResource GlassButton}" Content="C++" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="c++" Click="TrendingLangButton_Click" />
+                                            <Button Style="{StaticResource GlassButton}" Content="TS/JS" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="typescript" Click="TrendingLangButton_Click" />
+                                        </StackPanel>
+
+                                        <Grid Grid.Column="2" Margin="10,0,6,0">
+                                            <TextBox x:Name="GitHubSearchBox" FontSize="11" Padding="8,5"
+                                                     ToolTip="Search GitHub repositories by topic or keyword (press Enter)"
+                                                     KeyDown="GitHubSearchBox_KeyDown" />
+                                            <TextBlock Text="Filter / search…" Foreground="#52627C" FontSize="10"
+                                                       Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Visibility" Value="Collapsed" />
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding Text, ElementName=GitHubSearchBox}" Value="">
+                                                                <Setter Property="Visibility" Value="Visible" />
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
+                                        </Grid>
+
+                                        <Button Grid.Column="3" Style="{StaticResource GlassButton}" Content="Search" Padding="10,5" FontSize="10"
+                                                Click="GitHubSearchButton_Click" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Trending / Search Repository Cards -->
+                                <Grid Grid.Row="3">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,12">
+                                        <ItemsControl ItemsSource="{Binding TrendingRepos}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border CornerRadius="10" Background="#12FFFFFF" BorderBrush="#26FFFFFF" BorderThickness="1"
+                                                            Padding="14,11" Margin="0,0,0,9">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="Auto" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding FullName}" FontSize="13" FontWeight="Bold" Foreground="#EAF2FF" VerticalAlignment="Center" />
+                                                                    <Border Background="{Binding CategoryColor}" CornerRadius="6" Padding="7,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding CategoryHint}" FontSize="9" FontWeight="SemiBold" Foreground="#E5F1FF" />
+                                                                    </Border>
+                                                                    <Border Background="#1CFFFFFF" CornerRadius="6" Padding="7,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding Language}" FontSize="9" Foreground="#9CE8FF" FontWeight="SemiBold" />
+                                                                    </Border>
+                                                                </StackPanel>
+                                                                <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#9AA9C2" TextWrapping="Wrap" Margin="0,5,0,6" />
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding StarsText}" FontSize="10" Foreground="#FFD166" FontWeight="SemiBold" />
+                                                                    <TextBlock Text="  ·  " FontSize="10" Foreground="#53637C" />
+                                                                    <TextBlock Text="{Binding PeriodStarsText}" FontSize="10" Foreground="#6AE39C" />
+                                                                    <TextBlock Text="  ·  " FontSize="10" Foreground="#53637C" />
+                                                                    <TextBlock Text="{Binding HtmlUrl}" FontSize="10" Foreground="#60718D" />
+                                                                </StackPanel>
+                                                            </StackPanel>
+                                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                <Button Style="{StaticResource GlassButton}" Content="↓ Open Source" Padding="10,7" FontSize="10"
+                                                                        Tag="{Binding HtmlUrl}" Click="TrendingCardOpenOnly_Click"
+                                                                        ToolTip="Download and open in MyCompiler editor without executing" />
+                                                                <Button Style="{StaticResource PrimaryButton}" Content="⚡ Install &amp; Run" Padding="12,7" FontSize="10"
+                                                                        Margin="7,0,0,0" Tag="{Binding HtmlUrl}" Click="TrendingCardInstallRun_Click"
+                                                                        ToolTip="Automated download, project detection, build (or release EXE fallback), and launch" />
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+
+                                <!-- Modal Footer Status -->
+                                <Border Grid.Row="4" Background="#B80C1524" BorderBrush="#22FFFFFF" BorderThickness="0,1,0,0" Padding="20,10">
+                                    <Grid>
+                                        <TextBlock x:Name="GitHubModalStatusText" Text="Select a Trending repository or paste any GitHub URL above."
+                                                   FontSize="10" Foreground="#889AB5" VerticalAlignment="Center" />
+                                        <TextBlock Text="Smart Distinction: Runnable Apps compile &amp; run · Libraries run tests/open in editor · Docs/Web open cleanly"
+                                                   FontSize="9" Foreground="#5B6E8C" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </Border>
+                </Grid>
+
+                <Border Grid.Row="2" Background="#EC07101B" BorderBrush="#20FFFFFF" BorderThickness="0,1,0,0">
+                    <Grid Margin="13,0">
+                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                            <Ellipse x:Name="AppStatusDot" Width="7" Height="7" Fill="#4AE28D" Margin="0,0,8,0" />
+                            <TextBlock x:Name="AppStatusText" Text="Ready" Foreground="#71819A" FontSize="9" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                            <TextBlock x:Name="CursorStatusText" Text="Ln 1, Col 1" Foreground="#65758F" FontSize="9" />
+                            <TextBlock Text="  •  Windows x64  •  MyCompiler 1.4" Foreground="#44536B" FontSize="9" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

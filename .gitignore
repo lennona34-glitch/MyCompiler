@@ -1,0 +1,10 @@
+﻿bin/
+obj/
+.vs/
+publish/
+Decompiled/
+src/
+*.user
+*.suo
+*.exe
+MyCompiler-background.png
