@@ -112,6 +112,15 @@ public partial class MainWindow : Window
         _allFiles.AddRange(indexed);
         ApplyExplorerFilter();
         FileCountText.Text = $"{_allFiles.Count:N0} source files";
+
+        if (_currentFile is null || _isScratchFile || !_currentFile.StartsWith(_workspaceRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            var classification = await Task.Run(() => GitHubService.ClassifyWorkspace(_workspaceRoot, _compiler));
+            var entry = classification.EntryPath ?? _allFiles.FirstOrDefault()?.FullPath;
+            if (entry is not null && File.Exists(entry))
+                await LoadFileAsync(entry);
+        }
+
         AppStatusText.Text = "Workspace ready";
     }
 
@@ -379,12 +388,21 @@ public partial class MainWindow : Window
         BuildPlan plan;
         try
         {
-            // An open workspace (e.g. just decompiled) wins unless the active tab is a real file inside it.
+            var hasOpenWorkspace = _workspaceRoot is not null && _allFiles.Count > 0 && Directory.Exists(_workspaceRoot);
             var fileInWorkspace = _currentFile is not null && !_isScratchFile && _workspaceRoot is not null
                 && Path.GetFullPath(_currentFile).StartsWith(Path.GetFullPath(_workspaceRoot).TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase);
-            var workspacePlan = _workspaceRoot is not null && !fileInWorkspace
-                ? _compiler.CreateWorkspacePlan(_workspaceRoot)
-                : null;
+
+            if (fileInWorkspace && _isDirty)
+            {
+                if (!await SaveCurrentAsync()) return;
+            }
+
+            BuildPlan? workspacePlan = null;
+            if (hasOpenWorkspace)
+            {
+                workspacePlan = _compiler.CreateWorkspacePlan(_workspaceRoot!)
+                                ?? GitHubService.ClassifyWorkspace(_workspaceRoot!, _compiler).Plan;
+            }
 
             if (workspacePlan is not null)
             {
@@ -421,7 +439,7 @@ public partial class MainWindow : Window
         }
 
         OutputBox.Clear();
-        AppendOutput($"MyCompiler 1.3  ·  {plan.Summary}");
+        AppendOutput($"MyCompiler 1.5  ·  {plan.Summary}");
         AppendOutput(new string('─', 70));
         LanguageBadgeText.Text = plan.Language;
         _operationCts = new CancellationTokenSource();

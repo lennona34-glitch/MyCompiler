@@ -51,8 +51,36 @@ public sealed class ProcessRunner
         var stdout = PumpAsync(process.StandardOutput, line => onOutput(line, false), cancellationToken);
         var stderr = PumpAsync(process.StandardError, line => onOutput(line, true), cancellationToken);
 
+        var isDirectExeRun = Path.GetExtension(executable).Equals(".exe", StringComparison.OrdinalIgnoreCase) &&
+                             command.Arguments.Count == 0 &&
+                             (command.Caption.StartsWith("Run", StringComparison.OrdinalIgnoreCase) ||
+                              command.Caption.StartsWith("Launch", StringComparison.OrdinalIgnoreCase));
+
         try
         {
+            if (isDirectExeRun)
+            {
+                // Poll briefly in case this is a GUI desktop application (WPF/WinForms/Win32/SDL).
+                // Once a GUI window handle appears on screen, return success so MyCompiler doesn't hang waiting for the user to close the app.
+                for (var i = 0; i < 6; i++)
+                {
+                    var exitTask = process.WaitForExitAsync(cancellationToken);
+                    var completed = await Task.WhenAny(exitTask, Task.Delay(500, cancellationToken));
+                    if (completed == exitTask)
+                    {
+                        await Task.WhenAll(stdout, stderr);
+                        return new ProcessResult(process.ExitCode, DateTimeOffset.UtcNow - start, false);
+                    }
+
+                    process.Refresh();
+                    if (!process.HasExited && process.MainWindowHandle != IntPtr.Zero)
+                    {
+                        onOutput($"★ GUI window opened (PID {process.Id}) — running independently.", false);
+                        return new ProcessResult(0, DateTimeOffset.UtcNow - start, false);
+                    }
+                }
+            }
+
             await process.WaitForExitAsync(cancellationToken);
             await Task.WhenAll(stdout, stderr);
             return new ProcessResult(process.ExitCode, DateTimeOffset.UtcNow - start, false);
