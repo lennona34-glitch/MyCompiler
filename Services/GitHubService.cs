@@ -1045,6 +1045,7 @@ public sealed partial class GitHubService
                 name.Equals("conftest.py", StringComparison.OrdinalIgnoreCase) ||
                 name.StartsWith("test_", StringComparison.OrdinalIgnoreCase) ||
                 name.EndsWith("_test.py", StringComparison.OrdinalIgnoreCase) ||
+                file.Contains($"{Path.DirectorySeparatorChar}.github{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase) ||
                 file.Contains($"{Path.DirectorySeparatorChar}tests{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase) ||
                 file.Contains($"{Path.DirectorySeparatorChar}test{Path.DirectorySeparatorChar}", StringComparison.OrdinalIgnoreCase))
                 continue;

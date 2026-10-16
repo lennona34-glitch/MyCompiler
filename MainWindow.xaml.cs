@@ -1189,7 +1189,10 @@ public partial class MainWindow : Window
                 AppendOutput($"🤖 Detected {detectedSkills.Count} Antigravity Agent Skill(s) in repository.");
                 AppendOutput("› Auto-installing skill(s) into your personal Antigravity library (~/.gemini/config/skills/)…");
                 var installedList = await InstallSkillsFromDirectoryAsync(downloadedPath);
-                if (classification.Kind == RepoKind.DocsOrData || (classification.Kind == RepoKind.LibraryOrSdk && classification.Plan is null))
+                var hasStandaloneApp = _allFiles.Any(f => Path.GetExtension(f.FullPath) is ".csproj" or ".sln" or ".slnx") ||
+                                       File.Exists(Path.Combine(downloadedPath, "Cargo.toml")) ||
+                                       File.Exists(Path.Combine(downloadedPath, "CMakeLists.txt"));
+                if (!hasStandaloneApp)
                 {
                     SetOutputState(true, $"Installed {installedList.Count} Skill(s)");
                     return;
