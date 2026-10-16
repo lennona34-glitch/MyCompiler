@@ -631,19 +631,26 @@ public sealed partial class GitHubService
                                               Path.GetFileName(f).Equals("n64recomp.toml", StringComparison.OrdinalIgnoreCase) ||
                                               Path.GetFileName(f).Equals("us.splat.yaml", StringComparison.OrdinalIgnoreCase) ||
                                               Path.GetFileName(f).Equals("splat.yaml", StringComparison.OrdinalIgnoreCase));
-        if (hasRecompToml || IsDecompOrRecompText(rootNameLower + " " + readmeText))
+        var isDedicatedDecompRepo = hasRecompToml ||
+                                    IsDecompOrRecompText(rootNameLower) ||
+                                    readmeText.Contains("static recompilation") ||
+                                    readmeText.Contains("matching decompilation") ||
+                                    readmeText.Contains("n64recomp");
+        if (isDedicatedDecompRepo)
         {
+            var csproj = allFiles.FirstOrDefault(f => Path.GetExtension(f).Equals(".csproj", StringComparison.OrdinalIgnoreCase));
             var cmake = allFiles.FirstOrDefault(f => Path.GetFileName(f).Equals("CMakeLists.txt", StringComparison.OrdinalIgnoreCase));
             var makefile = allFiles.FirstOrDefault(f => Path.GetFileName(f).Equals("Makefile", StringComparison.OrdinalIgnoreCase));
             BuildPlan? decompPlan = null;
             try
             {
-                if (cmake is not null) decompPlan = compiler.CreatePlan(cmake, root);
+                if (csproj is not null) decompPlan = compiler.CreatePlan(csproj, root);
+                else if (cmake is not null) decompPlan = compiler.CreatePlan(cmake, root);
                 else if (makefile is not null) decompPlan = compiler.CreatePlan(makefile, root);
             }
             catch { }
 
-            var entrySrc = FindRepresentativeSource(root, [".cpp", ".c", ".h", ".rs"]) ?? readme ?? allFiles.FirstOrDefault();
+            var entrySrc = FindRepresentativeSource(root, [".cpp", ".c", ".h", ".cs", ".rs"]) ?? readme ?? allFiles.FirstOrDefault();
             return new RepoClassification(
                 RepoKind.ExecutableApp,
                 "🎮 DECOMP / RECOMP GAME",
