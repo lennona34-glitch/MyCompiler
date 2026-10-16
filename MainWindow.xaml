@@ -519,13 +519,23 @@
                                     </ScrollViewer>
                                 </Grid>
 
-                                <!-- Modal Footer Status -->
-                                <Border Grid.Row="4" Background="#B80C1524" BorderBrush="#22FFFFFF" BorderThickness="0,1,0,0" Padding="20,10">
+                                <!-- Modal Footer Status & Download Location -->
+                                <Border Grid.Row="4" Background="#B80C1524" BorderBrush="#22FFFFFF" BorderThickness="0,1,0,0" Padding="18,9">
                                     <Grid>
-                                        <TextBlock x:Name="GitHubModalStatusText" Text="Select a Trending repository or paste any GitHub URL above."
-                                                   FontSize="10" Foreground="#889AB5" VerticalAlignment="Center" />
-                                        <TextBlock Text="Smart Distinction: Runnable Apps compile &amp; run · Libraries run tests/open in editor · Docs/Web open cleanly"
-                                                   FontSize="9" Foreground="#5B6E8C" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock Text="📁 Download to:" FontSize="10" Foreground="#889AB5" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                            <TextBlock x:Name="GitHubDownloadFolderText" Text="C:\Users\adria\Desktop\MyCompiler\Downloads" FontSize="10" Foreground="#7DEBFF" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis" MaxWidth="360" />
+                                            <Button Style="{StaticResource GlassButton}" Content="Change…" Padding="8,3" FontSize="9" Click="ChangeDownloadFolder_Click" ToolTip="Choose a custom folder on your PC for downloaded GitHub repositories &amp; files" />
+                                            <Button Style="{StaticResource GlassButton}" Content="Open Folder ↗" Margin="5,0,0,0" Padding="8,3" FontSize="9" Click="OpenDownloadFolder_Click" ToolTip="Open the downloads folder in Windows File Explorer" />
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Column="1" x:Name="GitHubModalStatusText" Text="Select a Trending repository or paste any GitHub URL above."
+                                                   FontSize="10" Foreground="#889AB5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
                                     </Grid>
                                 </Border>
                             </Grid>

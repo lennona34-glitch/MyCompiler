@@ -803,10 +803,52 @@ public partial class MainWindow : Window
 
     private async void GitHubHubButton_Click(object sender, RoutedEventArgs e)
     {
+        UpdateGitHubDownloadFolderUI();
         GitHubOverlay.Visibility = Visibility.Visible;
         GitHubUrlBox.Focus();
         if (TrendingRepos.Count == 0)
             await RefreshTrendingAsync();
+    }
+
+    private void UpdateGitHubDownloadFolderUI()
+    {
+        var path = GitHubService.DownloadsRoot;
+        GitHubDownloadFolderText.Text = path;
+        GitHubDownloadFolderText.ToolTip = path;
+    }
+
+    private void ChangeDownloadFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var current = GitHubService.DownloadsRoot;
+        var dialog = new OpenFolderDialog
+        {
+            Title = "Select GitHub Downloads Folder",
+            InitialDirectory = Directory.Exists(current) ? current : null
+        };
+        if (dialog.ShowDialog(this) == true && !string.IsNullOrWhiteSpace(dialog.FolderName))
+        {
+            GitHubService.DownloadsRoot = dialog.FolderName;
+            UpdateGitHubDownloadFolderUI();
+            GitHubModalStatusText.Text = $"Downloads folder updated to: {dialog.FolderName}";
+        }
+    }
+
+    private void OpenDownloadFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var dir = GitHubService.DownloadsRoot;
+            Directory.CreateDirectory(dir);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = dir,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Could not open downloads folder: {ex.Message}", "MyCompiler", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
     }
 
     private void CloseGitHubOverlay_Click(object sender, RoutedEventArgs e) =>

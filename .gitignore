@@ -1,4 +1,4 @@
-﻿bin/
+bin/
 obj/
 .vs/
 publish/
@@ -8,3 +8,4 @@ src/
 *.suo
 *.exe
 MyCompiler-background.png
+Downloads/

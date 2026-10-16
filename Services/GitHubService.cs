@@ -10,8 +10,44 @@ namespace MyCompiler.Services;
 
 public sealed partial class GitHubService
 {
-    public static readonly string DownloadsRoot =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyCompiler", "GitHub");
+    private static string? _customDownloadsRoot;
+    public static string DownloadsRoot
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(_customDownloadsRoot))
+                return _customDownloadsRoot;
+
+            var settingsPath = GetDownloadsSettingFilePath();
+            if (File.Exists(settingsPath))
+            {
+                try
+                {
+                    var saved = File.ReadAllText(settingsPath).Trim();
+                    if (!string.IsNullOrWhiteSpace(saved) && Directory.Exists(saved))
+                        return saved;
+                }
+                catch { }
+            }
+
+            var desktopDownloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "MyCompiler", "Downloads");
+            return desktopDownloads;
+        }
+        set
+        {
+            _customDownloadsRoot = value;
+            try
+            {
+                var settingsPath = GetDownloadsSettingFilePath();
+                Directory.CreateDirectory(Path.GetDirectoryName(settingsPath)!);
+                File.WriteAllText(settingsPath, value);
+            }
+            catch { }
+        }
+    }
+
+    private static string GetDownloadsSettingFilePath() =>
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyCompiler", "downloads_location.txt");
 
     private static readonly HttpClient Http = CreateHttpClient();
     private static readonly ConcurrentDictionary<string, (DateTimeOffset Expiry, IReadOnlyList<GitHubRepoItem> Items)> SearchCache = new(StringComparer.OrdinalIgnoreCase);
@@ -402,7 +438,19 @@ public sealed partial class GitHubService
         var fullName = $"{repoOwner}/{repoName}";
         log($"› Downloading repository {fullName}…");
 
-        var targetFolder = Path.Combine(DownloadsRoot, $"{repoOwner}_{repoName}_{DateTime.Now:yyyyMMdd-HHmmss}");
+        // Clean, readable destination folder (e.g. "MyCompiler" or "owner-MyCompiler" on conflict)
+        var targetFolder = Path.Combine(DownloadsRoot, repoName);
+        if (Directory.Exists(targetFolder) && Directory.EnumerateFileSystemEntries(targetFolder).Any())
+        {
+            targetFolder = Path.Combine(DownloadsRoot, $"{repoOwner}-{repoName}");
+            if (Directory.Exists(targetFolder) && Directory.EnumerateFileSystemEntries(targetFolder).Any())
+            {
+                var counter = 2;
+                while (Directory.Exists($"{targetFolder} ({counter})") && Directory.EnumerateFileSystemEntries($"{targetFolder} ({counter})").Any())
+                    counter++;
+                targetFolder = $"{targetFolder} ({counter})";
+            }
+        }
         Directory.CreateDirectory(targetFolder);
 
         var zipPath = Path.Combine(targetFolder, "repo.zip");
@@ -435,13 +483,33 @@ public sealed partial class GitHubService
             throw new InvalidOperationException($"Could not download archive for {fullName}. Check that the repository is public.");
 
         log("› Extracting repository archive…");
-        ZipFile.ExtractToDirectory(zipPath, targetFolder, overwriteFiles: true);
+        var tempExtract = Path.Combine(targetFolder, "_extract_temp");
+        Directory.CreateDirectory(tempExtract);
+        ZipFile.ExtractToDirectory(zipPath, tempExtract, overwriteFiles: true);
         File.Delete(zipPath);
 
-        var topDirs = Directory.GetDirectories(targetFolder);
-        var extractedRoot = topDirs.Length == 1 && Directory.GetFiles(targetFolder).Length == 0
-            ? topDirs[0]
-            : targetFolder;
+        // Flatten outer GitHub archive wrapper directory so repository files sit cleanly at root
+        var topDirs = Directory.GetDirectories(tempExtract);
+        var topFiles = Directory.GetFiles(tempExtract);
+        var sourceDir = topDirs.Length == 1 && topFiles.Length == 0 ? topDirs[0] : tempExtract;
+
+        foreach (var dir in Directory.GetDirectories(sourceDir))
+        {
+            var dest = Path.Combine(targetFolder, Path.GetFileName(dir));
+            if (dest.Equals(tempExtract, StringComparison.OrdinalIgnoreCase)) continue;
+            if (Directory.Exists(dest)) Directory.Delete(dest, recursive: true);
+            Directory.Move(dir, dest);
+        }
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var dest = Path.Combine(targetFolder, Path.GetFileName(file));
+            if (File.Exists(dest)) File.Delete(dest);
+            File.Move(file, dest);
+        }
+        if (Directory.Exists(tempExtract))
+            Directory.Delete(tempExtract, recursive: true);
+
+        var extractedRoot = targetFolder;
 
         if (!string.IsNullOrWhiteSpace(subFolder))
         {
@@ -469,11 +537,20 @@ public sealed partial class GitHubService
         if (string.IsNullOrWhiteSpace(fileName))
             fileName = "main.cs";
 
-        var folder = Path.Combine(DownloadsRoot, $"File_{Path.GetFileNameWithoutExtension(fileName)}_{DateTime.Now:yyyyMMdd-HHmmss}");
+        var folder = Path.Combine(DownloadsRoot, "Files");
         Directory.CreateDirectory(folder);
         var destination = Path.Combine(folder, fileName);
+        if (File.Exists(destination))
+        {
+            var stem = Path.GetFileNameWithoutExtension(fileName);
+            var ext = Path.GetExtension(fileName);
+            var counter = 2;
+            while (File.Exists(Path.Combine(folder, $"{stem} ({counter}){ext}")))
+                counter++;
+            destination = Path.Combine(folder, $"{stem} ({counter}){ext}");
+        }
 
-        log($"› Downloading {fileName}…");
+        log($"› Downloading {Path.GetFileName(destination)}…");
         var content = await Http.GetByteArrayAsync(rawUrl, token);
         await File.WriteAllBytesAsync(destination, content, token);
         return (destination, true, null);
@@ -491,7 +568,7 @@ public sealed partial class GitHubService
         await using var stream = await response.Content.ReadAsStreamAsync(token);
         using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: token);
 
-        var folder = Path.Combine(DownloadsRoot, $"Gist_{gistId}_{DateTime.Now:yyyyMMdd-HHmmss}");
+        var folder = Path.Combine(DownloadsRoot, "Gists", $"Gist_{gistId}");
         Directory.CreateDirectory(folder);
 
         if (!doc.RootElement.TryGetProperty("files", out var filesObj))

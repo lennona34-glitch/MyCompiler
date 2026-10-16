@@ -572,9 +572,18 @@ public sealed partial class CompilerEngine
 
     private static string GetCacheDirectory(string source)
     {
+        var stem = SanitizeFolderName(Path.GetFileNameWithoutExtension(source));
+        if (string.IsNullOrWhiteSpace(stem)) stem = "build";
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(Path.GetFullPath(source).ToLowerInvariant()));
-        var key = Convert.ToHexString(bytes)[..12];
-        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyCompiler", "BuildCache", key);
+        var key = Convert.ToHexString(bytes)[..8];
+        return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyCompiler", "BuildCache", $"{stem}_{key}");
+    }
+
+    private static string SanitizeFolderName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var chars = name.Select(c => invalid.Contains(c) || char.IsWhiteSpace(c) ? '_' : c).ToArray();
+        return new string(chars).Trim('_');
     }
 
     private static string? FindProject(string sourcePath, string? workspaceRoot)
