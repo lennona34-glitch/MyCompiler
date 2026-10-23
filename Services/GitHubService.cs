@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.IO.Compression;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using MyCompiler.Models;
@@ -601,6 +602,7 @@ public sealed partial class GitHubService
     /// <summary>
     /// Queries GitHub Releases for a prebuilt Windows executable or portable archive and downloads/extracts it if found.
     /// Checking this FIRST for repositories with releases gives instant Windows execution without fighting local SDK versions.
+    /// Also checks recent pre-releases/alphas if /releases/latest has no Windows asset.
     /// </summary>
     public async Task<string?> TryDownloadWindowsReleaseBinaryAsync(
         string repoFullName,
@@ -610,58 +612,29 @@ public sealed partial class GitHubService
     {
         try
         {
-            var url = $"https://api.github.com/repos/{repoFullName}/releases/latest";
-            using var response = await Http.GetAsync(url, token);
-            if (!response.IsSuccessStatusCode) return null;
+            var repoShortName = repoFullName.Contains('/') ? repoFullName.Split('/').Last() : Path.GetFileName(destinationRoot);
+            var releaseDir = Path.Combine(destinationRoot, "_release_bin");
 
-            await using var stream = await response.Content.ReadAsStreamAsync(token);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: token);
-            if (!doc.RootElement.TryGetProperty("assets", out var assets)) return null;
-
-            string? bestUrl = null;
-            string? bestName = null;
-            var bestScore = -1;
-
-            foreach (var asset in assets.EnumerateArray())
+            // 1. If a release binary was already downloaded/extracted previously, locate the best .exe immediately!
+            if (Directory.Exists(releaseDir))
             {
-                var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
-                var dlUrl = asset.TryGetProperty("browser_download_url", out var u) ? u.GetString() ?? "" : "";
-                if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(dlUrl)) continue;
-
-                var lower = name.ToLowerInvariant();
-                if (lower.Contains("linux") || lower.Contains("darwin") || lower.Contains("macos") || lower.Contains("osx") ||
-                    lower.Contains("android") || lower.Contains("ios") || lower.Contains("arm64") || lower.Contains("aarch64") ||
-                    lower.EndsWith(".deb") || lower.EndsWith(".rpm") || lower.EndsWith(".dmg") || lower.EndsWith(".apk") ||
-                    lower.EndsWith(".appimage") || lower.EndsWith(".tar.gz") || lower.EndsWith(".tar.xz") ||
-                    lower.EndsWith(".sha256") || lower.EndsWith(".sig") || lower.EndsWith(".pdb"))
-                    continue;
-
-                var score = 0;
-                if (lower.EndsWith(".exe") && !lower.Contains("setup") && !lower.Contains("installer") && !lower.Contains("unins"))
-                    score += 60;
-                else if (lower.EndsWith(".zip") && (lower.Contains("win") || lower.Contains("x86_64") || lower.Contains("x64") || lower.Contains("amd64") || lower.Contains("msvc") || lower.Contains("portable")))
-                    score += 55;
-                else if (lower.EndsWith(".zip") && !lower.Contains("src") && !lower.Contains("source"))
-                    score += 35;
-                else if (lower.EndsWith(".exe"))
-                    score += 30;
-                else
-                    continue;
-
-                if (lower.Contains("x64") || lower.Contains("x86_64") || lower.Contains("amd64") || lower.Contains("win64")) score += 15;
-                if (lower.Contains("portable") || lower.Contains("standalone")) score += 10;
-
-                if (score > bestScore)
+                var existingBest = FindBestExecutableInDirectory(releaseDir, repoShortName);
+                if (existingBest is not null && File.Exists(existingBest))
                 {
-                    bestScore = score;
-                    bestUrl = dlUrl;
-                    bestName = name;
+                    log($"★ Found cached Windows release binary: {Path.GetRelativePath(destinationRoot, existingBest)}");
+                    return existingBest;
                 }
+            }
+
+            // 2. Query /releases/latest first; if 404 or no Windows asset (e.g. pre-release only repo), query /releases?per_page=10
+            var (bestUrl, bestName) = await FindBestReleaseAssetAsync($"https://api.github.com/repos/{repoFullName}/releases/latest", isArray: false, token);
+            if (bestUrl is null || bestName is null)
+            {
+                (bestUrl, bestName) = await FindBestReleaseAssetAsync($"https://api.github.com/repos/{repoFullName}/releases?per_page=10", isArray: true, token);
             }
 
             if (bestUrl is null || bestName is null) return null;
 
-            var releaseDir = Path.Combine(destinationRoot, "_release_bin");
             Directory.CreateDirectory(releaseDir);
             var targetFile = Path.Combine(releaseDir, bestName);
 
@@ -677,22 +650,311 @@ public sealed partial class GitHubService
             if (bestName.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))
             {
                 var extractDir = Path.Combine(releaseDir, "extracted");
+                if (Directory.Exists(extractDir))
+                {
+                    try { Directory.Delete(extractDir, recursive: true); } catch { }
+                }
                 Directory.CreateDirectory(extractDir);
-                ZipFile.ExtractToDirectory(targetFile, extractDir, overwriteFiles: true);
-                var exes = Directory.GetFiles(extractDir, "*.exe", SearchOption.AllDirectories)
-                    .Where(f => !Path.GetFileName(f).StartsWith("createdump", StringComparison.OrdinalIgnoreCase) &&
-                                !Path.GetFileName(f).Contains("uninstall", StringComparison.OrdinalIgnoreCase) &&
-                                !Path.GetFileName(f).Contains("crash", StringComparison.OrdinalIgnoreCase))
-                    .OrderByDescending(f => new FileInfo(f).Length)
+                SafeExtractZip(targetFile, extractDir);
+
+                // Also extract any immediate nested .zip inside the archive if no top-level .exe was found yet
+                var nestedZips = Directory.GetFiles(extractDir, "*.zip", SearchOption.AllDirectories)
+                    .Where(z => !z.Contains("\\deps\\", StringComparison.OrdinalIgnoreCase) &&
+                                !z.Contains("\\tools\\", StringComparison.OrdinalIgnoreCase))
+                    .Take(3)
                     .ToList();
-                return exes.FirstOrDefault();
+                foreach (var nestedZip in nestedZips)
+                {
+                    try
+                    {
+                        var subDir = Path.Combine(Path.GetDirectoryName(nestedZip)!, Path.GetFileNameWithoutExtension(nestedZip));
+                        Directory.CreateDirectory(subDir);
+                        SafeExtractZip(nestedZip, subDir);
+                    }
+                    catch { }
+                }
+
+                var bestExe = FindBestExecutableInDirectory(extractDir, repoShortName);
+                if (bestExe is not null)
+                {
+                    log($"  Located executable inside archive: {Path.GetRelativePath(extractDir, bestExe)}");
+                }
+                return bestExe;
             }
 
             return targetFile;
         }
+        catch (Exception ex)
+        {
+            log($"  Note: Release binary check skipped ({ex.Message})");
+            return null;
+        }
+    }
+
+    private async Task<(string? Url, string? Name)> FindBestReleaseAssetAsync(string apiUrl, bool isArray, CancellationToken token)
+    {
+        try
+        {
+            using var response = await Http.GetAsync(apiUrl, token);
+            if (!response.IsSuccessStatusCode) return (null, null);
+
+            await using var stream = await response.Content.ReadAsStreamAsync(token);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: token);
+
+            IEnumerable<JsonElement> releases = isArray && doc.RootElement.ValueKind == JsonValueKind.Array
+                ? doc.RootElement.EnumerateArray()
+                : [doc.RootElement];
+
+            foreach (var release in releases)
+            {
+                if (!release.TryGetProperty("assets", out var assets) || assets.ValueKind != JsonValueKind.Array)
+                    continue;
+
+                string? bestUrl = null;
+                string? bestName = null;
+                var bestScore = -1;
+
+                foreach (var asset in assets.EnumerateArray())
+                {
+                    var name = asset.TryGetProperty("name", out var n) ? n.GetString() ?? "" : "";
+                    var dlUrl = asset.TryGetProperty("browser_download_url", out var u) ? u.GetString() ?? "" : "";
+                    if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(dlUrl)) continue;
+
+                    var lower = name.ToLowerInvariant();
+                    if (lower.Contains("linux") || lower.Contains("darwin") || lower.Contains("macos") || lower.Contains("osx") ||
+                        lower.Contains("android") || lower.Contains("ios") || lower.Contains("arm64") || lower.Contains("aarch64") ||
+                        lower.Contains("ubuntu") || lower.Contains("flatpak") ||
+                        lower.EndsWith(".deb") || lower.EndsWith(".rpm") || lower.EndsWith(".dmg") || lower.EndsWith(".apk") ||
+                        lower.EndsWith(".appimage") || lower.EndsWith(".tar.gz") || lower.EndsWith(".tar.xz") ||
+                        lower.EndsWith(".sha256") || lower.EndsWith(".sig") || lower.EndsWith(".pdb") || lower.EndsWith(".7z"))
+                        continue;
+
+                    var score = 0;
+                    if (lower.EndsWith(".exe") && !lower.Contains("setup") && !lower.Contains("installer") && !lower.Contains("unins"))
+                        score += 65;
+                    else if (lower.EndsWith(".zip") && (lower.Contains("win") || lower.Contains("x86_64") || lower.Contains("x64") || lower.Contains("amd64") || lower.Contains("msvc") || lower.Contains("portable")))
+                        score += 60;
+                    else if (lower.EndsWith(".zip") && !lower.Contains("src") && !lower.Contains("source") && !lower.Contains("symbols") && !lower.Contains("debug"))
+                        score += 40;
+                    else if (lower.EndsWith(".exe"))
+                        score += 35;
+                    else
+                        continue;
+
+                    if (lower.Contains("x64") || lower.Contains("x86_64") || lower.Contains("amd64") || lower.Contains("win64") || lower.Contains("windows")) score += 15;
+                    if (lower.Contains("portable") || lower.Contains("standalone") || lower.Contains("release")) score += 10;
+
+                    if (score > bestScore)
+                    {
+                        bestScore = score;
+                        bestUrl = dlUrl;
+                        bestName = name;
+                    }
+                }
+
+                if (bestUrl is not null && bestName is not null)
+                    return (bestUrl, bestName);
+            }
+        }
+        catch { }
+
+        return (null, null);
+    }
+
+    private static void SafeExtractZip(string zipPath, string extractDir)
+    {
+        try
+        {
+            ZipFile.ExtractToDirectory(zipPath, extractDir, overwriteFiles: true);
+        }
         catch
         {
-            return null;
+            using var archive = ZipFile.OpenRead(zipPath);
+            foreach (var entry in archive.Entries)
+            {
+                try
+                {
+                    if (string.IsNullOrEmpty(entry.Name)) continue;
+                    var destPath = Path.GetFullPath(Path.Combine(extractDir, entry.FullName));
+                    if (!destPath.StartsWith(Path.GetFullPath(extractDir), StringComparison.OrdinalIgnoreCase))
+                        continue;
+                    Directory.CreateDirectory(Path.GetDirectoryName(destPath)!);
+                    entry.ExtractToFile(destPath, overwrite: true);
+                }
+                catch { }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Intelligently locates the primary runnable .exe anywhere inside a directory or extracted release archive,
+    /// avoiding bundled compilers/toolchains (e.g., clang.exe, ld.lld.exe, gcc.exe, python.exe) and helper utilities.
+    /// </summary>
+    public static string? FindBestExecutableInDirectory(string rootDir, string? hintName = null)
+    {
+        var candidates = FindCandidateExecutables(rootDir, hintName);
+        return candidates.FirstOrDefault().ExePath;
+    }
+
+    public static List<(string ExePath, int Score, bool IsGui)> FindCandidateExecutables(string rootDir, string? hintName = null)
+    {
+        var results = new List<(string ExePath, int Score, bool IsGui)>();
+        if (string.IsNullOrWhiteSpace(rootDir) || !Directory.Exists(rootDir))
+            return results;
+
+        var cleanHint = NormalizeToken(hintName ?? Path.GetFileName(rootDir));
+
+        string[] allExes;
+        try
+        {
+            allExes = Directory.GetFiles(rootDir, "*.exe", SearchOption.AllDirectories);
+        }
+        catch
+        {
+            return results;
+        }
+
+        foreach (var exe in allExes)
+        {
+            var fileName = Path.GetFileName(exe);
+            var stem = Path.GetFileNameWithoutExtension(exe);
+            var lowerName = fileName.ToLowerInvariant();
+            var lowerStem = stem.ToLowerInvariant();
+            var relPath = Path.GetRelativePath(rootDir, exe);
+            var lowerRel = relPath.Replace('/', '\\').ToLowerInvariant();
+
+            // Hard exclusions: crash handlers, uninstallers, setup stubs, .NET dump tools
+            if (lowerName.StartsWith("createdump") ||
+                lowerName.Contains("uninstall") ||
+                lowerName.StartsWith("unins0") ||
+                lowerName.Contains("crashpad") ||
+                lowerName.Contains("crashreporter") ||
+                lowerName.Contains("vc_redist") ||
+                lowerName.Equals("dxwebsetup.exe"))
+            {
+                continue;
+            }
+
+            var score = 100;
+
+            // Penalize bundled SDK / compiler / toolchain directories heavily (e.g. B2recomp's deps\llvm-mingw\bin\ld.lld.exe)
+            if (lowerRel.Contains("\\deps\\") || lowerRel.Contains("\\llvm") || lowerRel.Contains("\\mingw") ||
+                lowerRel.Contains("\\build-tools\\") || lowerRel.Contains("\\toolchain\\") || lowerRel.Contains("\\cmake\\") ||
+                lowerRel.Contains("\\python\\") || lowerRel.Contains("\\venv\\") || lowerRel.Contains("\\.venv\\") ||
+                lowerRel.Contains("\\node_modules\\") || lowerRel.Contains("\\vcpkg\\") || lowerRel.Contains("\\sdk\\"))
+            {
+                score -= 600;
+            }
+
+            if (lowerRel.Contains("\\tools\\") || lowerRel.Contains("\\scripts\\") || lowerRel.Contains("\\util\\"))
+            {
+                score -= 220;
+            }
+
+            // Penalize known compiler / linker / runtime binaries that are never the main app
+            if (lowerStem is "clang" or "clang++" or "gcc" or "g++" or "ld" or "ld.lld" or "lld" or "lld-link" or
+                "ar" or "nm" or "objcopy" or "objdump" or "ranlib" or "strip" or "windres" or "dlltool" or "as" or
+                "c++" or "cc" or "cpp" or "addr2line" or "readelf" or "size" or "strings" or "gprof" or "gdb" or "lldb" or
+                "python" or "python3" or "pythonw" or "pip" or "pip3" or "cmake" or "ninja" or "make" or "mingw32-make" or
+                "git" or "7z" or "7za" or "curl" or "wget" ||
+                lowerStem.StartsWith("clang-") || lowerStem.StartsWith("llvm-") ||
+                lowerStem.StartsWith("x86_64-") || lowerStem.StartsWith("i686-") || lowerStem.StartsWith("aarch64-") ||
+                lowerStem.StartsWith("arm-none-") || lowerStem.StartsWith("mips") || lowerStem.StartsWith("powerpc"))
+            {
+                score -= 750;
+            }
+
+            // Penalize CLI asset extractors/converters when looking for the main app
+            if (lowerStem.EndsWith("-extract") || lowerStem.EndsWith("_extract") || lowerStem.Contains("extractor") ||
+                lowerStem.Contains("updater") || lowerStem.Contains("helper"))
+            {
+                score -= 180;
+            }
+
+            // Boost if the .exe name matches the repo or folder name!
+            var cleanStem = NormalizeToken(stem);
+            if (!string.IsNullOrEmpty(cleanHint) && !string.IsNullOrEmpty(cleanStem))
+            {
+                if (cleanStem.Equals(cleanHint, StringComparison.OrdinalIgnoreCase))
+                    score += 550;
+                else if (cleanStem.Contains(cleanHint, StringComparison.OrdinalIgnoreCase) ||
+                         cleanHint.Contains(cleanStem, StringComparison.OrdinalIgnoreCase))
+                    score += 320;
+            }
+
+            if (lowerStem.Contains("launcher") || lowerStem.Contains("recomp") || lowerStem.Contains("studio") ||
+                lowerStem.Contains("client") || lowerStem.Contains("player") || lowerStem.Contains("editor"))
+            {
+                score += 120;
+            }
+
+            // Inspect Windows PE Header Subsystem: Windows GUI (2) vs Console (3)
+            var isGui = IsWindowsGuiSubsystem(exe);
+            if (isGui)
+            {
+                score += 260;
+            }
+
+            // Prefer shallower paths (closer to root of extracted archive or inside _release_bin/extracted)
+            var relForDepth = lowerRel.Replace("_release_bin\\extracted\\", "").Replace("_release_bin\\", "");
+            var depth = relForDepth.Count(c => c == '\\');
+            score += Math.Max(0, 160 - depth * 35);
+
+            // Slight tie-breaker for reasonable binary size (avoid tiny 10KB wrappers when a 2MB app binary exists)
+            try
+            {
+                var len = new FileInfo(exe).Length;
+                if (len > 100 * 1024) score += 25;
+                if (len > 1024 * 1024) score += 25;
+            }
+            catch { }
+
+            results.Add((exe, score, isGui));
+        }
+
+        return results
+            .OrderByDescending(r => r.Score)
+            .ThenByDescending(r => r.IsGui)
+            .ToList();
+    }
+
+    private static string NormalizeToken(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input)) return "";
+        var sb = new StringBuilder(input.Length);
+        foreach (var ch in input)
+        {
+            if (char.IsLetterOrDigit(ch))
+                sb.Append(char.ToLowerInvariant(ch));
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// Reads the Windows Portable Executable (PE) header to check if IMAGE_OPTIONAL_HEADER.Subsystem == 2 (IMAGE_SUBSYSTEM_WINDOWS_GUI).
+    /// </summary>
+    public static bool IsWindowsGuiSubsystem(string exePath)
+    {
+        try
+        {
+            using var fs = new FileStream(exePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            if (fs.Length < 256) return false;
+            using var br = new BinaryReader(fs);
+            if (br.ReadUInt16() != 0x5A4D) return false; // 'MZ'
+            fs.Seek(0x3C, SeekOrigin.Begin);
+            var peOffset = br.ReadInt32();
+            if (peOffset <= 0 || peOffset + 24 + 70 > fs.Length) return false;
+            fs.Seek(peOffset, SeekOrigin.Begin);
+            if (br.ReadUInt32() != 0x00004550) return false; // 'PE\0\0'
+            // Skip IMAGE_FILE_HEADER (20 bytes) -> OptionalHeader starts at peOffset + 24
+            // Subsystem is at offset 68 inside OptionalHeader (both PE32 and PE32+)
+            fs.Seek(peOffset + 24 + 68, SeekOrigin.Begin);
+            var subsystem = br.ReadUInt16();
+            return subsystem == 2; // 2 = IMAGE_SUBSYSTEM_WINDOWS_GUI, 3 = IMAGE_SUBSYSTEM_WINDOWS_CUI
+        }
+        catch
+        {
+            return false;
         }
     }
 

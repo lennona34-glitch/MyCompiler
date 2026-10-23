@@ -143,8 +143,8 @@ public partial class MainWindow : Window
     private List<SourceFileItem> IndexWorkspace(string root)
     {
         var sourceExtensions = _compiler.Languages.SelectMany(language => language.Extensions).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        sourceExtensions.UnionWith([".sln", ".slnx", ".csproj", ".fsproj", ".vbproj", ".json", ".toml", ".xml", ".gradle", ".txt", ".smali"]);
-        var specialNames = new HashSet<string>(["Makefile", "CMakeLists.txt", "go.mod", "package.json", "Cargo.toml", "pom.xml"], StringComparer.OrdinalIgnoreCase);
+        sourceExtensions.UnionWith([".sln", ".slnx", ".csproj", ".fsproj", ".vbproj", ".json", ".toml", ".xml", ".gradle", ".txt", ".smali", ".md", ".markdown", ".yaml", ".yml"]);
+        var specialNames = new HashSet<string>(["Makefile", "CMakeLists.txt", "go.mod", "package.json", "Cargo.toml", "pom.xml", "SKILL.md", "skills.md", "README.md"], StringComparer.OrdinalIgnoreCase);
         var result = new List<SourceFileItem>();
         var pending = new Stack<string>();
         pending.Push(root);
@@ -402,13 +402,73 @@ public partial class MainWindow : Window
     {
         if (_operationCts is not null) return;
 
+        var hasOpenWorkspace = _workspaceRoot is not null && _allFiles.Count > 0 && Directory.Exists(_workspaceRoot);
+        var fileInWorkspace = _currentFile is not null && !_isScratchFile && _workspaceRoot is not null
+            && Path.GetFullPath(_currentFile).StartsWith(Path.GetFullPath(_workspaceRoot).TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase);
+
+        // 1. If the user is viewing a SKILL.md / skills.md file (or a skill repository) and presses F5 / F6, install the skill(s)!
+        var currentFileIsSkill = _currentFile is not null &&
+            (Path.GetFileName(_currentFile).Equals("SKILL.md", StringComparison.OrdinalIgnoreCase) ||
+             Path.GetFileName(_currentFile).Equals("skills.md", StringComparison.OrdinalIgnoreCase) ||
+             Path.GetFileName(_currentFile).Equals("skill.md", StringComparison.OrdinalIgnoreCase));
+
+        if (hasOpenWorkspace)
+        {
+            var skillsInWorkspace = FindSkillFiles(_workspaceRoot!);
+            var hasCompiledProject = _allFiles.Any(f => Path.GetExtension(f.FullPath) is ".csproj" or ".sln" or ".slnx") ||
+                                     File.Exists(Path.Combine(_workspaceRoot!, "Cargo.toml")) ||
+                                     File.Exists(Path.Combine(_workspaceRoot!, "CMakeLists.txt"));
+            if (currentFileIsSkill || (skillsInWorkspace.Count > 0 && !hasCompiledProject))
+            {
+                if (_isDirty && _currentFile is not null && !_isScratchFile)
+                    await SaveCurrentAsync();
+                OutputBox.Clear();
+                await InstallSkillsFromDirectoryAsync(_workspaceRoot!);
+                return;
+            }
+        }
+        else if (currentFileIsSkill && _currentFile is not null)
+        {
+            if (_isDirty && !_isScratchFile)
+                await SaveCurrentAsync();
+            OutputBox.Clear();
+            await InstallSkillsFromDirectoryAsync(Path.GetDirectoryName(_currentFile)!);
+            return;
+        }
+
+        // 2. If runAfterBuild is requested and the workspace already has a prebuilt release .exe (e.g. inside _release_bin), launch it directly!
+        if (runAfterBuild && hasOpenWorkspace)
+        {
+            var releaseBinDir = Path.Combine(_workspaceRoot!, "_release_bin");
+            if (Directory.Exists(releaseBinDir))
+            {
+                var prebuiltExe = GitHubService.FindBestExecutableInDirectory(releaseBinDir, Path.GetFileName(_workspaceRoot));
+                if (prebuiltExe is not null && File.Exists(prebuiltExe))
+                {
+                    OutputBox.Clear();
+                    AppendOutput($"MyCompiler 1.5  ·  Prebuilt Release Runner");
+                    AppendOutput(new string('─', 70));
+                    _operationCts = new CancellationTokenSource();
+                    SetBusy(true, "Launching release executable…");
+                    try
+                    {
+                        await LaunchStandaloneExecutableAsync(prebuiltExe, _operationCts.Token);
+                        SetOutputState(true, $"Launched {Path.GetFileName(prebuiltExe)}");
+                    }
+                    finally
+                    {
+                        _operationCts?.Dispose();
+                        _operationCts = null;
+                        SetBusy(false, AppStatusText.Text);
+                    }
+                    return;
+                }
+            }
+        }
+
         BuildPlan plan;
         try
         {
-            var hasOpenWorkspace = _workspaceRoot is not null && _allFiles.Count > 0 && Directory.Exists(_workspaceRoot);
-            var fileInWorkspace = _currentFile is not null && !_isScratchFile && _workspaceRoot is not null
-                && Path.GetFullPath(_currentFile).StartsWith(Path.GetFullPath(_workspaceRoot).TrimEnd('\\') + "\\", StringComparison.OrdinalIgnoreCase);
-
             if (fileInWorkspace && _isDirty)
             {
                 if (!await SaveCurrentAsync()) return;
@@ -425,14 +485,50 @@ public partial class MainWindow : Window
             {
                 plan = workspacePlan;
             }
-            else if (!fileInWorkspace && IsNativeDecompile(_workspaceRoot))
+            else if (hasOpenWorkspace)
             {
-                OutputBox.Clear();
-                AppendOutput("MyCompiler: this is a decompiled native (C/C++) program.");
-                AppendOutput("Ghidra's C output is for reading only — it can't be rebuilt into a working .exe.");
-                AppendOutput("To rebuild a native app you need its original source code.");
-                SetOutputState(false, "Not rebuildable");
-                return;
+                // Check if there is a standalone .exe anywhere in the workspace before failing
+                var fallbackExe = GitHubService.FindBestExecutableInDirectory(_workspaceRoot!, Path.GetFileName(_workspaceRoot));
+                if (fallbackExe is not null && File.Exists(fallbackExe))
+                {
+                    OutputBox.Clear();
+                    AppendOutput($"MyCompiler 1.5  ·  Executable Runner");
+                    AppendOutput(new string('─', 70));
+                    _operationCts = new CancellationTokenSource();
+                    SetBusy(true, "Launching executable…");
+                    try
+                    {
+                        await LaunchStandaloneExecutableAsync(fallbackExe, _operationCts.Token);
+                        SetOutputState(true, $"Launched {Path.GetFileName(fallbackExe)}");
+                    }
+                    finally
+                    {
+                        _operationCts?.Dispose();
+                        _operationCts = null;
+                        SetBusy(false, AppStatusText.Text);
+                    }
+                    return;
+                }
+
+                if (!fileInWorkspace && IsNativeDecompile(_workspaceRoot))
+                {
+                    OutputBox.Clear();
+                    AppendOutput("MyCompiler: this is a decompiled native (C/C++) program.");
+                    AppendOutput("Ghidra's C output is for reading only — it can't be rebuilt into a working .exe.");
+                    AppendOutput("To rebuild a native app you need its original source code.");
+                    SetOutputState(false, "Not rebuildable");
+                    return;
+                }
+
+                if (_currentFile is null || _isScratchFile)
+                {
+                    if (!await SaveScratchAsync()) return;
+                }
+                else if (_isDirty)
+                {
+                    if (!await SaveCurrentAsync()) return;
+                }
+                plan = _compiler.CreatePlan(_currentFile!, _workspaceRoot);
             }
             else
             {
@@ -470,6 +566,19 @@ public partial class MainWindow : Window
                 var success = await ExecuteStepAsync(step, _operationCts.Token);
                 if (!success)
                 {
+                    // If source build failed but the workspace already contains a prebuilt .exe, offer/launch it!
+                    if (runAfterBuild && hasOpenWorkspace)
+                    {
+                        var existingExe = GitHubService.FindBestExecutableInDirectory(_workspaceRoot!, Path.GetFileName(_workspaceRoot));
+                        if (existingExe is not null && File.Exists(existingExe))
+                        {
+                            AppendOutput(string.Empty);
+                            AppendOutput($"ℹ Source build failed, but found an existing executable in workspace: {Path.GetRelativePath(_workspaceRoot!, existingExe)}");
+                            await LaunchStandaloneExecutableAsync(existingExe, _operationCts.Token);
+                            SetOutputState(true, $"Launched {Path.GetFileName(existingExe)}");
+                            return;
+                        }
+                    }
                     SetOutputState(false, "Build failed");
                     return;
                 }
@@ -506,6 +615,55 @@ public partial class MainWindow : Window
             _operationCts?.Dispose();
             _operationCts = null;
             SetBusy(false, AppStatusText.Text);
+        }
+    }
+
+    /// <summary>
+    /// Launches a prebuilt or standalone Windows .exe cleanly.
+    /// GUI apps are popped open directly via Windows Shell in their own folder so DLLs and assets resolve properly.
+    /// Console apps run with output streamed to the console panel (and never trigger a fallback CMake build if they print usage).
+    /// </summary>
+    private async Task<bool> LaunchStandaloneExecutableAsync(string exePath, CancellationToken token)
+    {
+        if (!File.Exists(exePath)) return false;
+
+        var exeName = Path.GetFileName(exePath);
+        var workingDir = Path.GetDirectoryName(exePath)!;
+        var isGui = GitHubService.IsWindowsGuiSubsystem(exePath);
+
+        if (isGui)
+        {
+            AppendOutput($"★ Launching Windows GUI application: {exeName}");
+            AppendOutput($"  Folder: {workingDir}");
+            try
+            {
+                using var proc = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exePath,
+                    WorkingDirectory = workingDir,
+                    UseShellExecute = true
+                });
+                await Task.Delay(350, token);
+                AppendOutput($"✓ {exeName} launched in its own window.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                AppendOutput($"✕ Could not start {exeName}: {ex.Message}");
+                return false;
+            }
+        }
+        else
+        {
+            AppendOutput($"★ Running Windows console executable: {exeName}");
+            AppendOutput($"  Folder: {workingDir}");
+            var step = new CommandStep($"Run {exeName}", exePath, [], workingDir);
+            var ok = await ExecuteStepAsync(step, token);
+            if (!ok)
+            {
+                AppendOutput($"ℹ Note: '{exeName}' is a command-line utility and exited after printing usage/status. You can run it with arguments in the '>_' console bar below.");
+            }
+            return true;
         }
     }
 
@@ -612,10 +770,191 @@ public partial class MainWindow : Window
     private async Task RunCustomCommandAsync()
     {
         if (_operationCts is not null || string.IsNullOrWhiteSpace(CustomCommandBox.Text)) return;
-        var tokens = SplitCommandLine(CustomCommandBox.Text);
+        var rawCmd = CustomCommandBox.Text.Trim();
+        var tokens = SplitCommandLine(rawCmd);
         if (tokens.Count == 0) return;
-        var working = _currentFile is not null ? Path.GetDirectoryName(_currentFile)! : _workspaceRoot ?? Environment.CurrentDirectory;
-        var step = new CommandStep("Custom command", tokens[0], tokens.Skip(1).ToArray(), working);
+
+        var cmdVerb = tokens[0].ToLowerInvariant();
+
+        // Built-in Console Command 1: help / ?
+        if (cmdVerb is "help" or "?")
+        {
+            AppendOutput(string.Empty);
+            AppendOutput("★ MyCompiler Built-in Console Commands:");
+            AppendOutput("  install / skills        → Scan current workspace (or open editor tab) and install SKILL.md / skills.md into Antigravity (~/.gemini/config/skills/)");
+            AppendOutput("  install <skill-name>    → Save the current editor buffer directly as a new Antigravity skill named <skill-name>");
+            AppendOutput("  exe / launch            → Find and pop open the best .exe in the current workspace (ignores compilers/deps)");
+            AppendOutput("  exe <name>              → Find and launch a specific .exe matching <name> in the workspace");
+            AppendOutput("  exes / scan             → List all .exe files anywhere in the current workspace with [GUI] / [CLI] tags");
+            AppendOutput("  explorer / open         → Open the current workspace folder in Windows File Explorer");
+            AppendOutput("  <any shell command>     → Run any tool or CLI command inside the active folder");
+            CustomCommandBox.Clear();
+            return;
+        }
+
+        // Built-in Console Command 2: install / skills / skill / add-skill
+        if (cmdVerb is "install" or "skills" or "skill" or "add-skill" or "install-skill" or "install-skills")
+        {
+            CustomCommandBox.Clear();
+            var arg = tokens.Count > 1 ? tokens[1] : null;
+            if (arg is not null && arg.Equals("skill", StringComparison.OrdinalIgnoreCase) ||
+                arg is not null && arg.Equals("skills", StringComparison.OrdinalIgnoreCase))
+            {
+                arg = tokens.Count > 2 ? tokens[2] : null;
+            }
+
+            if (_workspaceRoot is not null && Directory.Exists(_workspaceRoot) && string.IsNullOrWhiteSpace(arg))
+            {
+                var found = FindSkillFiles(_workspaceRoot);
+                if (found.Count > 0)
+                {
+                    await InstallSkillsFromDirectoryAsync(_workspaceRoot);
+                    return;
+                }
+            }
+
+            // If no SKILL.md file exists on disk (or user passed a custom name like `install my-skill`), install from the active editor buffer!
+            if (!string.IsNullOrWhiteSpace(SourceEditor.Text))
+            {
+                var fallbackName = !string.IsNullOrWhiteSpace(arg)
+                    ? arg
+                    : (_currentFile is not null ? Path.GetFileNameWithoutExtension(_currentFile) : (_workspaceRoot is not null ? Path.GetFileName(_workspaceRoot) : "custom-skill"));
+                if (fallbackName.Equals("SKILL", StringComparison.OrdinalIgnoreCase) ||
+                    fallbackName.Equals("skills", StringComparison.OrdinalIgnoreCase) ||
+                    fallbackName.Equals("README", StringComparison.OrdinalIgnoreCase) ||
+                    fallbackName.Equals("main", StringComparison.OrdinalIgnoreCase))
+                {
+                    fallbackName = _workspaceRoot is not null ? Path.GetFileName(_workspaceRoot) : "custom-skill";
+                }
+
+                var skillSlug = Regex.Replace(fallbackName, @"[^a-zA-Z0-9_\-]", "-").Trim('-').ToLowerInvariant();
+                if (string.IsNullOrWhiteSpace(skillSlug)) skillSlug = "custom-skill";
+
+                var globalSkillsDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".gemini", "config", "skills");
+                var targetDir = Path.Combine(globalSkillsDir, skillSlug);
+                Directory.CreateDirectory(targetDir);
+                var targetFile = Path.Combine(targetDir, "SKILL.md");
+                await File.WriteAllTextAsync(targetFile, SourceEditor.Text, new UTF8Encoding(false));
+                EnsureSkillFrontmatter(targetFile, skillSlug);
+
+                AppendOutput(string.Empty);
+                AppendOutput($"🤖 Installed active editor document as Antigravity Skill '{skillSlug}'!");
+                AppendOutput($"  Target: {targetFile}");
+                SetOutputState(true, $"Installed '{skillSlug}'");
+                return;
+            }
+
+            AppendOutput("MyCompiler: Open a repository or file containing a skill first, then type 'install'.");
+            return;
+        }
+
+        // Built-in Console Command 3: exes / scan (list all .exe files in the workspace)
+        if (cmdVerb is "exes" or "scan")
+        {
+            CustomCommandBox.Clear();
+            var searchRoot = _workspaceRoot ?? (_currentFile is not null ? Path.GetDirectoryName(_currentFile) : null);
+            if (string.IsNullOrWhiteSpace(searchRoot) || !Directory.Exists(searchRoot))
+            {
+                AppendOutput("MyCompiler: No workspace folder is currently open.");
+                return;
+            }
+
+            var candidates = GitHubService.FindCandidateExecutables(searchRoot, Path.GetFileName(searchRoot));
+            AppendOutput(string.Empty);
+            if (candidates.Count == 0)
+            {
+                AppendOutput($"No .exe files found in {searchRoot}");
+                return;
+            }
+
+            AppendOutput($"★ Found {candidates.Count} executable(s) in {Path.GetFileName(searchRoot)} (ranked best-first):");
+            foreach (var (exePath, score, isGui) in candidates.Take(25))
+            {
+                var rel = Path.GetRelativePath(searchRoot, exePath);
+                var kindTag = isGui ? "[GUI]" : "[CLI]";
+                AppendOutput($"  {kindTag}  {rel}   (score: {score})");
+            }
+            AppendOutput("Tip: Type 'exe' to launch the #1 ranked executable, or 'exe <name>' to launch a specific one.");
+            return;
+        }
+
+        // Built-in Console Command 4: exe / launch (find & pop open the best .exe in the workspace)
+        if (cmdVerb is "exe" or "launch")
+        {
+            CustomCommandBox.Clear();
+            var searchRoot = _workspaceRoot ?? (_currentFile is not null ? Path.GetDirectoryName(_currentFile) : null);
+            if (string.IsNullOrWhiteSpace(searchRoot) || !Directory.Exists(searchRoot))
+            {
+                AppendOutput("MyCompiler: No workspace folder is currently open.");
+                return;
+            }
+
+            var filter = tokens.Count > 1 ? tokens[1] : null;
+            var candidates = GitHubService.FindCandidateExecutables(searchRoot, filter ?? Path.GetFileName(searchRoot));
+            if (candidates.Count == 0)
+            {
+                AppendOutput($"MyCompiler: No .exe files found inside {searchRoot}.");
+                return;
+            }
+
+            var chosen = !string.IsNullOrWhiteSpace(filter)
+                ? candidates.FirstOrDefault(c => Path.GetFileName(c.ExePath).Contains(filter, StringComparison.OrdinalIgnoreCase)).ExePath ?? candidates[0].ExePath
+                : candidates[0].ExePath;
+
+            _operationCts = new CancellationTokenSource();
+            SetBusy(true, $"Launching {Path.GetFileName(chosen)}…");
+            AppendOutput(string.Empty);
+            try
+            {
+                var ok = await LaunchStandaloneExecutableAsync(chosen, _operationCts.Token);
+                SetOutputState(ok, ok ? $"Launched {Path.GetFileName(chosen)}" : "Launch failed");
+            }
+            finally
+            {
+                _operationCts?.Dispose();
+                _operationCts = null;
+                SetBusy(false, AppStatusText.Text);
+            }
+            return;
+        }
+
+        // Built-in Console Command 5: explorer / open (open folder in Windows Explorer)
+        if (cmdVerb is "explorer" or "open" or "folder")
+        {
+            CustomCommandBox.Clear();
+            var folder = _workspaceRoot ?? (_currentFile is not null ? Path.GetDirectoryName(_currentFile) : GitHubService.DownloadsRoot);
+            if (!string.IsNullOrWhiteSpace(folder) && Directory.Exists(folder))
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = folder,
+                    UseShellExecute = true
+                });
+                AppendOutput($"✓ Opened in Windows Explorer: {folder}");
+            }
+            return;
+        }
+
+        var working = _workspaceRoot is not null && Directory.Exists(_workspaceRoot)
+            ? _workspaceRoot
+            : (_currentFile is not null ? Path.GetDirectoryName(_currentFile)! : Environment.CurrentDirectory);
+
+        // If the user typed the name of an .exe that exists in a subfolder of the workspace, resolve its full path automatically!
+        var executable = tokens[0];
+        if (!File.Exists(Path.Combine(working, executable)) && _workspaceRoot is not null && Directory.Exists(_workspaceRoot))
+        {
+            var matchExe = GitHubService.FindCandidateExecutables(_workspaceRoot, executable)
+                .FirstOrDefault(c => Path.GetFileName(c.ExePath).Equals(executable, StringComparison.OrdinalIgnoreCase) ||
+                                     Path.GetFileNameWithoutExtension(c.ExePath).Equals(executable, StringComparison.OrdinalIgnoreCase))
+                .ExePath;
+            if (!string.IsNullOrWhiteSpace(matchExe) && File.Exists(matchExe))
+            {
+                executable = matchExe;
+                working = Path.GetDirectoryName(matchExe)!;
+            }
+        }
+
+        var step = new CommandStep("Custom command", executable, tokens.Skip(1).ToArray(), working);
         _operationCts = new CancellationTokenSource();
         SetBusy(true, "Running custom command…");
         AppendOutput(string.Empty);
@@ -1000,24 +1339,42 @@ public partial class MainWindow : Window
         catch { }
     }
 
+    private static IEnumerable<string> GetAllDownloadFolders()
+    {
+        yield return GitHubService.DownloadsRoot;
+        var devDownloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "DEV FOLDER", "MyCompiler", "Downloads");
+        if (!devDownloads.Equals(GitHubService.DownloadsRoot, StringComparison.OrdinalIgnoreCase))
+            yield return devDownloads;
+    }
+
+    private string? FindDownloadedRepoFolder(string fullName, string name, string? owner = null)
+    {
+        foreach (var downloadFolder in GetAllDownloadFolders())
+        {
+            if (!Directory.Exists(downloadFolder)) continue;
+
+            var candidates = new List<string>
+            {
+                Path.Combine(downloadFolder, name),
+                Path.Combine(downloadFolder, fullName.Replace('/', '_')),
+                Path.Combine(downloadFolder, fullName.Replace('/', '-'))
+            };
+            if (!string.IsNullOrWhiteSpace(owner))
+                candidates.Add(Path.Combine(downloadFolder, $"{owner}-{name}"));
+
+            var match = candidates.FirstOrDefault(dir => Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any());
+            if (match is not null)
+                return match;
+        }
+        return null;
+    }
+
     private bool IsRepoDownloaded(string fullName, string name, string? owner = null)
     {
         if (_downloadedRepoHistory.Contains(fullName) || _downloadedRepoHistory.Contains(name))
             return true;
 
-        var downloadFolder = GitHubService.DownloadsRoot;
-        if (!Directory.Exists(downloadFolder)) return false;
-
-        var candidates = new List<string>
-        {
-            Path.Combine(downloadFolder, name),
-            Path.Combine(downloadFolder, fullName.Replace('/', '_')),
-            Path.Combine(downloadFolder, fullName.Replace('/', '-'))
-        };
-        if (!string.IsNullOrWhiteSpace(owner))
-            candidates.Add(Path.Combine(downloadFolder, $"{owner}-{name}"));
-
-        return candidates.Any(dir => Directory.Exists(dir) && Directory.EnumerateFileSystemEntries(dir).Any());
+        return FindDownloadedRepoFolder(fullName, name, owner) is not null;
     }
 
     private void UpdateRepoDownloadedState(GitHubRepoItem item)
@@ -1042,24 +1399,33 @@ public partial class MainWindow : Window
         if (sender is Button { Tag: string url })
         {
             var item = TrendingRepos.FirstOrDefault(r => r.HtmlUrl.Equals(url, StringComparison.OrdinalIgnoreCase));
-            if (item is not null && item.IsDownloaded)
+            if (item is not null)
             {
-                var downloadFolder = GitHubService.DownloadsRoot;
-                var candidates = new List<string>
-                {
-                    Path.Combine(downloadFolder, item.Name),
-                    Path.Combine(downloadFolder, $"{item.Owner}-{item.Name}"),
-                    Path.Combine(downloadFolder, item.FullName.Replace('/', '_')),
-                    Path.Combine(downloadFolder, item.FullName.Replace('/', '-'))
-                };
-                var existing = candidates.FirstOrDefault(c => Directory.Exists(c) && Directory.EnumerateFileSystemEntries(c).Any());
+                var existing = FindDownloadedRepoFolder(item.FullName, item.Name, item.Owner);
                 if (existing is not null)
                 {
                     GitHubOverlay.Visibility = Visibility.Collapsed;
                     await OpenWorkspaceAsync(existing);
                     OutputBox.Clear();
-                    AppendOutput($"Opened already-downloaded repository: {item.FullName}");
-                    AppendOutput($"Location: {existing}");
+                    AppendOutput($"✓ Opened local repository: {item.FullName}");
+                    AppendOutput($"  Location: {existing}");
+
+                    var localSkills = FindSkillFiles(existing);
+                    if (localSkills.Count > 0)
+                    {
+                        AppendOutput(string.Empty);
+                        AppendOutput($"🤖 Found {localSkills.Count} Antigravity Skill(s) in this source.");
+                        AppendOutput("   To install from the console below: type 'install' and press Enter (or press F5 / click '🤖 Install Skill').");
+                    }
+
+                    var localExes = GitHubService.FindCandidateExecutables(existing, item.Name);
+                    if (localExes.Count > 0)
+                    {
+                        AppendOutput(string.Empty);
+                        AppendOutput($"★ Found prebuilt executable: {Path.GetRelativePath(existing, localExes[0].ExePath)}");
+                        AppendOutput("   To pop it open from the console below: type 'exe' and press Enter (or press F5).");
+                    }
+
                     SetOutputState(true, $"Opened {item.Name}");
                     return;
                 }
@@ -1298,14 +1664,21 @@ public partial class MainWindow : Window
             if (classification.EntryPath is not null && File.Exists(classification.EntryPath))
                 await LoadFileAsync(classification.EntryPath);
 
+            var detectedSkills = FindSkillFiles(downloadedPath);
+
             if (!autoBuildAndRun)
             {
+                if (detectedSkills.Count > 0)
+                {
+                    AppendOutput(string.Empty);
+                    AppendOutput($"🤖 Detected {detectedSkills.Count} Antigravity Agent Skill(s) in this source.");
+                    AppendOutput("   To install from the console below: type 'install' and press Enter (or press F5 / click '🤖 Install Skill').");
+                }
                 SetOutputState(true, $"Loaded · {classification.BadgeText}");
                 return;
             }
 
             // Automated handling based on RepoKind
-            var detectedSkills = FindSkillFiles(downloadedPath);
             if (detectedSkills.Count > 0)
             {
                 AppendOutput(string.Empty);
@@ -1345,19 +1718,26 @@ public partial class MainWindow : Window
             }
 
             var executedSuccessfully = false;
+            var foundPrebuiltBinary = false;
 
             // FAST-PATH FOR WINDOWS APPS: Check if the repository publishes an official Windows Release binary (.exe / .zip) FIRST!
             // This guarantees complex Windows apps launch immediately without waiting on missing C++/Rust/SDK toolchains.
-            if (classification.Kind == RepoKind.ExecutableApp && !string.IsNullOrWhiteSpace(repoFullName))
+            if (!string.IsNullOrWhiteSpace(repoFullName))
             {
                 AppendOutput(string.Empty);
                 AppendOutput("› Checking GitHub Releases for an official prebuilt Windows binary…");
                 var releaseExe = await _github.TryDownloadWindowsReleaseBinaryAsync(repoFullName, downloadedPath, AppendOutput, token);
+
+                // Also check if the downloaded source folder itself already shipped with a prebuilt .exe
+                if (releaseExe is null || !File.Exists(releaseExe))
+                {
+                    releaseExe = GitHubService.FindBestExecutableInDirectory(downloadedPath, Path.GetFileName(downloadedPath));
+                }
+
                 if (releaseExe is not null && File.Exists(releaseExe))
                 {
-                    AppendOutput($"★ Launching Windows release executable: {Path.GetFileName(releaseExe)}");
-                    var runReleaseStep = new CommandStep($"Run {Path.GetFileName(releaseExe)}", releaseExe, [], Path.GetDirectoryName(releaseExe)!);
-                    executedSuccessfully = await ExecuteStepAsync(runReleaseStep, token);
+                    foundPrebuiltBinary = true;
+                    executedSuccessfully = await LaunchStandaloneExecutableAsync(releaseExe, token);
                 }
                 else
                 {
@@ -1365,8 +1745,8 @@ public partial class MainWindow : Window
                 }
             }
 
-            // Build & run from source if no prebuilt binary was run
-            if (!executedSuccessfully && classification.Plan is not null)
+            // Build & run from source ONLY if no prebuilt release binary was found & launched
+            if (!foundPrebuiltBinary && !executedSuccessfully && classification.Plan is not null)
             {
                 AppendOutput(string.Empty);
                 AppendOutput($"› Starting automated {classification.Plan.Summary}…");
