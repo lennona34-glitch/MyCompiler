@@ -1221,7 +1221,7 @@ public partial class MainWindow : Window
     private GitHubFeedMode _feedMode = GitHubFeedMode.Trending;
 
     private readonly List<GitHubRepoItem> _allLoadedRepos = [];
-    private bool _hideDownloaded = false;
+    private bool _hideDownloaded = true;
 
     private void SetLoadedRepos(IEnumerable<GitHubRepoItem> items)
     {
@@ -1252,15 +1252,15 @@ public partial class MainWindow : Window
             HideDownloadedButton.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
             HideDownloadedButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#33104B80"));
             HideDownloadedButton.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#45E18D"));
-            HideDownloadedButton.ToolTip = $"Currently hiding {hiddenCount} downloaded repositories. Click to show everything.";
+            HideDownloadedButton.ToolTip = $"Currently hiding {hiddenCount} downloaded repositories to keep your feed fresh. Click to reveal everything.";
         }
         else
         {
-            HideDownloadedButton.Content = hiddenCount > 0 ? $"👁 Hide Downloaded ({hiddenCount})" : "👁 Hide Downloaded";
+            HideDownloadedButton.Content = hiddenCount > 0 ? $"👁 Showing All ({hiddenCount} DL)" : "👁 Showing All";
             HideDownloadedButton.ClearValue(Control.ForegroundProperty);
             HideDownloadedButton.ClearValue(Control.BackgroundProperty);
             HideDownloadedButton.ClearValue(Control.BorderBrushProperty);
-            HideDownloadedButton.ToolTip = $"Hide {hiddenCount} already-downloaded repositories to keep search results fresh";
+            HideDownloadedButton.ToolTip = $"Currently showing all repositories (including {hiddenCount} already downloaded). Click to hide downloaded.";
         }
     }
 

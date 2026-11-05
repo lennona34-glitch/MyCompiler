@@ -380,8 +380,10 @@ public sealed partial class GitHubService
     private static (string Hint, string Color) GuessRepoHint(string fullName, string description, string language)
     {
         var text = $"{fullName} {description}".ToLowerInvariant();
-        if (IsDecompOrRecompText(text))
-            return ("🎮 Decomp / Recomp Game", "#C85A17");
+        if (IsRecompText(text))
+            return ("⚡ Recomp Port", "#802090");
+        if (IsDecompText(text))
+            return ("🎮 Decomp Project", "#C85A17");
         if (text.Contains("antigravity"))
             return ("🤖 Antigravity Skill / MCP", "#0E8A7A");
         if (text.Contains("mcp") || text.Contains("claude-plugin") || text.Contains("claude code") || text.Contains("agent-skill") || text.Contains("agent skill") || text.Contains("cursor-plugin"))
@@ -399,17 +401,29 @@ public sealed partial class GitHubService
         return ("Source / Auto-Detect", "#263F7DFF");
     }
 
-    private static bool IsDecompOrRecompText(string lowerText)
+    private static bool IsRecompText(string lowerText)
     {
-        return lowerText.Contains("recomp") ||
-               lowerText.Contains("decomp") ||
-               lowerText.Contains("n64recomp") ||
-               lowerText.Contains("zelda64") ||
-               lowerText.Contains("shipwright") ||
-               lowerText.Contains("harbourmasters") ||
-               lowerText.Contains("sm64") ||
-               lowerText.Contains("static recompilation") ||
-               lowerText.Contains("matching decompilation");
+        return (lowerText.Contains("recomp") ||
+                lowerText.Contains("static recompilation") ||
+                lowerText.Contains("n64recomp") ||
+                lowerText.Contains("zelda64recomp") ||
+                lowerText.Contains("ps2recomp") ||
+                lowerText.Contains("xenonrecomp") ||
+                lowerText.Contains("b2recomp")) &&
+               !lowerText.Contains("recompose");
+    }
+
+    private static bool IsDecompText(string lowerText)
+    {
+        return (lowerText.Contains("decomp") ||
+                lowerText.Contains("matching decompilation") ||
+                lowerText.Contains("disassembly") ||
+                lowerText.Contains("shipwright") ||
+                lowerText.Contains("harbourmasters") ||
+                lowerText.Contains("sm64") ||
+                lowerText.Contains("opengoal")) &&
+               !lowerText.Contains("decompose") &&
+               !lowerText.Contains("decomposition");
     }
 
     private static string CleanHtml(string raw)
@@ -1011,12 +1025,9 @@ public sealed partial class GitHubService
                                               Path.GetFileName(f).Equals("n64recomp.toml", StringComparison.OrdinalIgnoreCase) ||
                                               Path.GetFileName(f).Equals("us.splat.yaml", StringComparison.OrdinalIgnoreCase) ||
                                               Path.GetFileName(f).Equals("splat.yaml", StringComparison.OrdinalIgnoreCase));
-        var isDedicatedDecompRepo = hasRecompToml ||
-                                    IsDecompOrRecompText(rootNameLower) ||
-                                    readmeText.Contains("static recompilation") ||
-                                    readmeText.Contains("matching decompilation") ||
-                                    readmeText.Contains("n64recomp");
-        if (isDedicatedDecompRepo)
+        var isRecomp = hasRecompToml || IsRecompText(rootNameLower) || readmeText.Contains("static recompilation") || readmeText.Contains("n64recomp") || IsRecompText(readmeText);
+        var isDecomp = !isRecomp && (IsDecompText(rootNameLower) || readmeText.Contains("matching decompilation") || IsDecompText(readmeText));
+        if (isRecomp || isDecomp)
         {
             var csproj = allFiles.FirstOrDefault(f => Path.GetExtension(f).Equals(".csproj", StringComparison.OrdinalIgnoreCase));
             var cmake = allFiles.FirstOrDefault(f => Path.GetFileName(f).Equals("CMakeLists.txt", StringComparison.OrdinalIgnoreCase));
@@ -1033,9 +1044,11 @@ public sealed partial class GitHubService
             var entrySrc = FindRepresentativeSource(root, [".cpp", ".c", ".h", ".cs", ".rs"]) ?? readme ?? allFiles.FirstOrDefault();
             return new RepoClassification(
                 RepoKind.ExecutableApp,
-                "🎮 DECOMP / RECOMP GAME",
-                "#C85A17",
-                "Detected Decompilation / Static Recompilation game port. Checking GitHub Releases for a prebuilt Windows executable first (note: some ports require your own legally obtained retail ROM/assets to launch).",
+                isRecomp ? "⚡ RECOMP GAME PORT" : "🎮 DECOMP GAME PROJECT",
+                isRecomp ? "#802090" : "#C85A17",
+                isRecomp
+                    ? "Detected Static Recompilation game port. Checking GitHub Releases for a prebuilt Windows executable first."
+                    : "Detected game decompilation project. Checking GitHub Releases for a prebuilt Windows executable first (ROM/assets may be needed to run).",
                 entrySrc,
                 decompPlan);
         }
@@ -1262,25 +1275,39 @@ public sealed partial class GitHubService
                     FindRepresentativeSource(pkgDir, [".ts", ".mjs", ".js"]) ?? pkgJson, plan);
             }
 
-            if (info.HasStart || info.HasDev || info.MainScript is not null)
+            if (info.HasStart || info.HasDev || info.HasBuild || info.HasCompile || !string.IsNullOrWhiteSpace(info.MainScript))
             {
-                var steps = new List<CommandStep>
+                var steps = new List<CommandStep>();
+
+                var subAppPkg = Path.Combine(pkgDir, "app", "package.json");
+                if (File.Exists(subAppPkg))
                 {
-                    new("Install npm dependencies", "npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], pkgDir)
-                };
+                    steps.Add(new CommandStep("Install app dependencies", "npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], Path.Combine(pkgDir, "app")));
+                }
+
+                steps.Add(new CommandStep("Install npm dependencies", "npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund"], pkgDir));
+
                 if (info.HasCompile)
                     steps.Add(new CommandStep("Compile project", "npm", ["run", "compile"], pkgDir));
                 else if (info.HasBuild)
                     steps.Add(new CommandStep("Build project", "npm", ["run", "build"], pkgDir));
 
-                CommandStep runStep = info.HasStart
-                    ? new CommandStep("Run npm start", "npm", ["run", "start"], pkgDir)
-                    : info.MainScript is not null && File.Exists(Path.Combine(pkgDir, info.MainScript))
-                        ? new CommandStep($"Run {info.MainScript}", "node", [Path.Combine(pkgDir, info.MainScript)], pkgDir)
-                        : new CommandStep("Run npm dev", "npm", ["run", "dev"], pkgDir);
+                CommandStep? runStep = null;
+                if (info.HasStart)
+                {
+                    runStep = new CommandStep("Run npm start", "npm", ["run", "start"], pkgDir);
+                }
+                else if (info.HasDev)
+                {
+                    runStep = new CommandStep("Run npm dev", "npm", ["run", "dev"], pkgDir);
+                }
+                else if (!string.IsNullOrWhiteSpace(info.MainScript))
+                {
+                    runStep = new CommandStep($"Run {info.MainScript} --help", "node", [Path.Combine(pkgDir, info.MainScript), "--help"], pkgDir);
+                }
 
                 var plan = new BuildPlan("Node.js App", steps, runStep, $"Node.js automated install & run · {Path.GetFileName(pkgDir)}");
-                var entryJs = info.MainScript is not null && File.Exists(Path.Combine(pkgDir, info.MainScript))
+                var entryJs = (!string.IsNullOrWhiteSpace(info.MainScript) && File.Exists(Path.Combine(pkgDir, info.MainScript)))
                     ? Path.Combine(pkgDir, info.MainScript)
                     : FindRepresentativeSource(pkgDir, [".ts", ".tsx", ".js", ".mjs"]) ?? pkgJson;
 
@@ -1414,6 +1441,10 @@ public sealed partial class GitHubService
                 if (bin.ValueKind == JsonValueKind.String) main = bin.GetString();
                 else if (bin.ValueKind == JsonValueKind.Object)
                     main = bin.EnumerateObject().FirstOrDefault().Value.GetString();
+            }
+            if (string.IsNullOrWhiteSpace(main) && root.TryGetProperty("main", out var m) && m.ValueKind == JsonValueKind.String)
+            {
+                main = m.GetString();
             }
             var isMcp = root.TryGetProperty("mcpName", out _) ||
                         raw.Contains("@modelcontextprotocol", StringComparison.OrdinalIgnoreCase) ||

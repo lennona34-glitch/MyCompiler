@@ -13,6 +13,7 @@
     <Product>MyCompiler</Product>
     <Description>A beautiful universal compiler workbench for Windows.</Description>
     <ApplicationIcon>Assets\mycompiler.ico</ApplicationIcon>
+    <DefaultItemExcludes>$(DefaultItemExcludes);src\**;Decompiled\**;Downloads\**</DefaultItemExcludes>
   </PropertyGroup>
 
   <ItemGroup>
