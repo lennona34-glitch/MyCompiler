@@ -31,6 +31,13 @@ public sealed partial class GitHubService
                 catch { }
             }
 
+            // Portable detection: If a Downloads directory exists next to the application or in its root, use it automatically!
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var localDownloads = Path.Combine(appDir, "Downloads");
+            if (Directory.Exists(localDownloads)) return localDownloads;
+            var parentDownloads = Path.GetFullPath(Path.Combine(appDir, "..", "Downloads"));
+            if (Directory.Exists(parentDownloads)) return parentDownloads;
+
             var desktopDownloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "MyCompiler", "Downloads");
             return desktopDownloads;
         }

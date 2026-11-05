@@ -1342,9 +1342,15 @@ public partial class MainWindow : Window
     private static IEnumerable<string> GetAllDownloadFolders()
     {
         yield return GitHubService.DownloadsRoot;
+        var appDir = AppDomain.CurrentDomain.BaseDirectory;
+        var localDownloads = Path.Combine(appDir, "Downloads");
+        if (Directory.Exists(localDownloads)) yield return localDownloads;
+        var parentDownloads = Path.GetFullPath(Path.Combine(appDir, "..", "Downloads"));
+        if (Directory.Exists(parentDownloads)) yield return parentDownloads;
+        var desktopDownloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "MyCompiler", "Downloads");
+        if (Directory.Exists(desktopDownloads)) yield return desktopDownloads;
         var devDownloads = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "DEV FOLDER", "MyCompiler", "Downloads");
-        if (!devDownloads.Equals(GitHubService.DownloadsRoot, StringComparison.OrdinalIgnoreCase))
-            yield return devDownloads;
+        if (Directory.Exists(devDownloads)) yield return devDownloads;
     }
 
     private string? FindDownloadedRepoFolder(string fullName, string name, string? owner = null)

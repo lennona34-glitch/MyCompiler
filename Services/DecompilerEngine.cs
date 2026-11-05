@@ -17,8 +17,19 @@ public sealed record DecompileResult(bool Success, string OutputDirectory, strin
 public sealed class DecompilerEngine
 {
     public static readonly string ToolsRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyCompiler", "Decompilers");
-    // TODO: make this a user setting; hard-coded per user request for now.
-    public static readonly string OutputRoot = @"C:\Users\adria\Desktop\MyCompiler\Decompiled";
+
+    public static string OutputRoot
+    {
+        get
+        {
+            var appDir = AppDomain.CurrentDomain.BaseDirectory;
+            var localDecompiled = Path.Combine(appDir, "Decompiled");
+            if (Directory.Exists(localDecompiled)) return localDecompiled;
+            var parentDecompiled = Path.GetFullPath(Path.Combine(appDir, "..", "Decompiled"));
+            if (Directory.Exists(parentDecompiled)) return parentDecompiled;
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "MyCompiler", "Decompiled");
+        }
+    }
 
     public static readonly HashSet<string> BinaryExtensions = new(StringComparer.OrdinalIgnoreCase)
     {
