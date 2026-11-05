@@ -18,6 +18,9 @@ public sealed record ToolchainStatus(
     string? SuggestedCommand = null,
     string? ResolvedPath = null)
 {
+    public bool ShowCommandBox => !IsAvailable && !string.IsNullOrWhiteSpace(SuggestedCommand);
+    public Visibility CommandBoxVisibility => ShowCommandBox ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ReadyBadgeVisibility => IsAvailable ? Visibility.Visible : Visibility.Collapsed;
     public string ActionLabel => IsAvailable ? "Copy update" :
         SuggestedCommand?.StartsWith("https://", StringComparison.OrdinalIgnoreCase) == true ? "Copy guide" : "Copy install";
 }

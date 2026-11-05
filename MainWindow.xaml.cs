@@ -1160,9 +1160,10 @@ public partial class MainWindow : Window
     private async void GitHubHubButton_Click(object sender, RoutedEventArgs e)
     {
         UpdateGitHubDownloadFolderUI();
+        UpdateHideDownloadedButtonUI(_allLoadedRepos.Count(r => r.IsDownloaded));
         GitHubOverlay.Visibility = Visibility.Visible;
         GitHubUrlBox.Focus();
-        if (TrendingRepos.Count == 0)
+        if (TrendingRepos.Count == 0 && _allLoadedRepos.Count == 0)
             await RefreshTrendingAsync();
     }
 
@@ -1216,8 +1217,77 @@ public partial class MainWindow : Window
     private void GitHubModalCard_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) =>
         e.Handled = true;
 
-    private enum GitHubFeedMode { Trending, WindowsApps, DecompRecomp, AntigravityMcp }
+    private enum GitHubFeedMode { Trending, WindowsApps, Recomp, Decomp, AntigravityMcp }
     private GitHubFeedMode _feedMode = GitHubFeedMode.Trending;
+
+    private readonly List<GitHubRepoItem> _allLoadedRepos = [];
+    private bool _hideDownloaded = false;
+
+    private void SetLoadedRepos(IEnumerable<GitHubRepoItem> items)
+    {
+        _allLoadedRepos.Clear();
+        _allLoadedRepos.AddRange(items);
+        foreach (var item in _allLoadedRepos)
+            UpdateRepoDownloadedState(item);
+        ApplyRepoFilter();
+    }
+
+    private void ApplyRepoFilter()
+    {
+        TrendingRepos.Clear();
+        var filtered = _allLoadedRepos.Where(r => !_hideDownloaded || !r.IsDownloaded).ToList();
+        foreach (var item in filtered)
+            TrendingRepos.Add(item);
+
+        var hiddenCount = _allLoadedRepos.Count(r => r.IsDownloaded);
+        UpdateHideDownloadedButtonUI(hiddenCount);
+    }
+
+    private void UpdateHideDownloadedButtonUI(int hiddenCount)
+    {
+        if (HideDownloadedButton is null) return;
+        if (_hideDownloaded)
+        {
+            HideDownloadedButton.Content = hiddenCount > 0 ? $"🙈 Hidden ({hiddenCount})" : "🙈 Hidden (0)";
+            HideDownloadedButton.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
+            HideDownloadedButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#33104B80"));
+            HideDownloadedButton.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#45E18D"));
+            HideDownloadedButton.ToolTip = $"Currently hiding {hiddenCount} downloaded repositories. Click to show everything.";
+        }
+        else
+        {
+            HideDownloadedButton.Content = hiddenCount > 0 ? $"👁 Hide Downloaded ({hiddenCount})" : "👁 Hide Downloaded";
+            HideDownloadedButton.ClearValue(Control.ForegroundProperty);
+            HideDownloadedButton.ClearValue(Control.BackgroundProperty);
+            HideDownloadedButton.ClearValue(Control.BorderBrushProperty);
+            HideDownloadedButton.ToolTip = $"Hide {hiddenCount} already-downloaded repositories to keep search results fresh";
+        }
+    }
+
+    private void HideDownloadedButton_Click(object sender, RoutedEventArgs e)
+    {
+        _hideDownloaded = !_hideDownloaded;
+        ApplyRepoFilter();
+        var hiddenCount = _allLoadedRepos.Count(r => r.IsDownloaded);
+        GitHubModalStatusText.Text = _hideDownloaded
+            ? $"Hiding {hiddenCount} downloaded repositories to keep results fresh."
+            : $"Showing all {_allLoadedRepos.Count} repositories (including downloaded).";
+    }
+
+    private void UpdateFeedStatusText(string feedName)
+    {
+        var hiddenCount = _allLoadedRepos.Count(r => r.IsDownloaded);
+        if (_hideDownloaded && hiddenCount > 0)
+        {
+            GitHubModalStatusText.Text = TrendingRepos.Count > 0
+                ? $"Showing {TrendingRepos.Count} fresh {feedName} ({hiddenCount} downloaded hidden)."
+                : $"All {hiddenCount} {feedName} are already downloaded! Click '🙈 Hidden' to view them.";
+        }
+        else
+        {
+            GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} {feedName} ({_trendingLanguage}).";
+        }
+    }
 
     private async void TrendingSinceButton_Click(object sender, RoutedEventArgs e)
     {
@@ -1233,9 +1303,15 @@ public partial class MainWindow : Window
         await RefreshCurrentGitHubFeedAsync();
     }
 
-    private async void DecompRecompFeedButton_Click(object sender, RoutedEventArgs e)
+    private async void RecompFeedButton_Click(object sender, RoutedEventArgs e)
     {
-        _feedMode = GitHubFeedMode.DecompRecomp;
+        _feedMode = GitHubFeedMode.Recomp;
+        await RefreshCurrentGitHubFeedAsync();
+    }
+
+    private async void DecompFeedButton_Click(object sender, RoutedEventArgs e)
+    {
+        _feedMode = GitHubFeedMode.Decomp;
         await RefreshCurrentGitHubFeedAsync();
     }
 
@@ -1255,7 +1331,8 @@ public partial class MainWindow : Window
     private Task RefreshCurrentGitHubFeedAsync() => _feedMode switch
     {
         GitHubFeedMode.WindowsApps => RefreshWindowsAppsFeedAsync(),
-        GitHubFeedMode.DecompRecomp => RefreshDecompRecompFeedAsync(),
+        GitHubFeedMode.Recomp => RefreshRecompFeedAsync(),
+        GitHubFeedMode.Decomp => RefreshDecompFeedAsync(),
         GitHubFeedMode.AntigravityMcp => RefreshAntigravityMcpFeedAsync(),
         _ => RefreshTrendingAsync()
     };
@@ -1394,6 +1471,14 @@ public partial class MainWindow : Window
         {
             item.IsDownloaded = !item.IsDownloaded;
             SaveDownloadedHistory(item.FullName, item.IsDownloaded);
+            if (_hideDownloaded)
+            {
+                ApplyRepoFilter();
+            }
+            else
+            {
+                UpdateHideDownloadedButtonUI(_allLoadedRepos.Count(r => r.IsDownloaded));
+            }
             GitHubModalStatusText.Text = item.IsDownloaded
                 ? $"Marked '{item.FullName}' as downloaded."
                 : $"Unmarked '{item.FullName}'.";
@@ -1458,13 +1543,8 @@ public partial class MainWindow : Window
         {
             var items = await _github.GetWindowsAppsFeedAsync(_trendingLanguage, token);
             if (token.IsCancellationRequested) return;
-            TrendingRepos.Clear();
-            foreach (var item in items)
-            {
-                UpdateRepoDownloadedState(item);
-                TrendingRepos.Add(item);
-            }
-            GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} runnable Windows apps & tools ({_trendingLanguage}). Click '⚡ Install & Run' to launch!";
+            SetLoadedRepos(items);
+            UpdateFeedStatusText("runnable Windows apps & tools");
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -1473,29 +1553,45 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshDecompRecompFeedAsync()
+    private async Task RefreshRecompFeedAsync()
     {
         _trendingCts?.Cancel();
         _trendingCts = new CancellationTokenSource();
         var token = _trendingCts.Token;
 
-        GitHubModalStatusText.Text = $"Loading Decomp & Recomp game ports ({_trendingLanguage})…";
+        GitHubModalStatusText.Text = $"Loading Static Recompilation game ports ({_trendingLanguage})…";
         try
         {
-            var items = await _github.GetDecompRecompFeedAsync(_trendingLanguage, token);
+            var items = await _github.GetRecompFeedAsync(_trendingLanguage, token);
             if (token.IsCancellationRequested) return;
-            TrendingRepos.Clear();
-            foreach (var item in items)
-            {
-                UpdateRepoDownloadedState(item);
-                TrendingRepos.Add(item);
-            }
-            GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} Decompilation & Static Recompilation game ports ({_trendingLanguage}).";
+            SetLoadedRepos(items);
+            UpdateFeedStatusText("Static Recompilation game ports");
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
         {
-            GitHubModalStatusText.Text = $"Could not load Decomp/Recomp feed: {ex.Message}";
+            GitHubModalStatusText.Text = $"Could not load Recomp feed: {ex.Message}";
+        }
+    }
+
+    private async Task RefreshDecompFeedAsync()
+    {
+        _trendingCts?.Cancel();
+        _trendingCts = new CancellationTokenSource();
+        var token = _trendingCts.Token;
+
+        GitHubModalStatusText.Text = $"Loading Decompilation game projects ({_trendingLanguage})…";
+        try
+        {
+            var items = await _github.GetDecompFeedAsync(_trendingLanguage, token);
+            if (token.IsCancellationRequested) return;
+            SetLoadedRepos(items);
+            UpdateFeedStatusText("Decompilation game projects");
+        }
+        catch (OperationCanceledException) { }
+        catch (Exception ex)
+        {
+            GitHubModalStatusText.Text = $"Could not load Decomp feed: {ex.Message}";
         }
     }
 
@@ -1510,13 +1606,8 @@ public partial class MainWindow : Window
         {
             var items = await _github.GetAntigravityMcpFeedAsync(_trendingLanguage, token);
             if (token.IsCancellationRequested) return;
-            TrendingRepos.Clear();
-            foreach (var item in items)
-            {
-                UpdateRepoDownloadedState(item);
-                TrendingRepos.Add(item);
-            }
-            GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} Antigravity skills & MCP repositories ({_trendingLanguage}).";
+            SetLoadedRepos(items);
+            UpdateFeedStatusText("Antigravity skills & MCP repositories");
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -1536,13 +1627,8 @@ public partial class MainWindow : Window
         {
             var items = await _github.GetTrendingAsync(_trendingLanguage, _trendingSince, token);
             if (token.IsCancellationRequested) return;
-            TrendingRepos.Clear();
-            foreach (var item in items)
-            {
-                UpdateRepoDownloadedState(item);
-                TrendingRepos.Add(item);
-            }
-            GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} trending repositories ({_trendingLanguage} · {_trendingSince}). Try '★ Windows Apps', '🎮 Decomp / Recomp', or '🤖 Antigravity / MCP'!";
+            SetLoadedRepos(items);
+            UpdateFeedStatusText($"trending repositories ({_trendingSince})");
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -1578,13 +1664,12 @@ public partial class MainWindow : Window
         {
             var items = await _github.SearchRepositoriesAsync(query, _trendingLanguage, token);
             if (token.IsCancellationRequested) return;
-            TrendingRepos.Clear();
-            foreach (var item in items)
-            {
-                UpdateRepoDownloadedState(item);
-                TrendingRepos.Add(item);
-            }
-            GitHubModalStatusText.Text = $"Found {TrendingRepos.Count} repositories matching '{query}'.";
+            SetLoadedRepos(items);
+            var hiddenCount = _allLoadedRepos.Count(r => r.IsDownloaded);
+            if (_hideDownloaded && hiddenCount > 0)
+                GitHubModalStatusText.Text = $"Found {TrendingRepos.Count} fresh repositories matching '{query}' ({hiddenCount} downloaded hidden).";
+            else
+                GitHubModalStatusText.Text = $"Found {TrendingRepos.Count} repositories matching '{query}'.";
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)
@@ -1624,9 +1709,13 @@ public partial class MainWindow : Window
             if (!string.IsNullOrWhiteSpace(repoFullName))
             {
                 SaveDownloadedHistory(repoFullName, isDownloaded: true);
-                var match = TrendingRepos.FirstOrDefault(r => r.FullName.Equals(repoFullName, StringComparison.OrdinalIgnoreCase));
+                var match = _allLoadedRepos.FirstOrDefault(r => r.FullName.Equals(repoFullName, StringComparison.OrdinalIgnoreCase))
+                            ?? TrendingRepos.FirstOrDefault(r => r.FullName.Equals(repoFullName, StringComparison.OrdinalIgnoreCase));
                 if (match is not null)
+                {
                     match.IsDownloaded = true;
+                    if (_hideDownloaded) ApplyRepoFilter();
+                }
             }
 
             if (isSingleFile)

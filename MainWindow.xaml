@@ -261,8 +261,18 @@
                                                                 <TextBlock Text="{Binding Tool}" Foreground="#71809A" FontSize="8" Margin="0,2,0,0"
                                                                            ToolTip="{Binding ResolvedPath}" TextTrimming="CharacterEllipsis" />
                                                                 <TextBlock Text="{Binding Detail}" Foreground="#52627A" FontSize="8" Margin="0,2,0,0" TextWrapping="Wrap" />
+
+                                                                <!-- Shown when toolchain is installed and up-to-date -->
+                                                                <StackPanel Orientation="Horizontal" Margin="0,4,0,0" Visibility="{Binding ReadyBadgeVisibility}">
+                                                                    <TextBlock Text="✓ Ready &amp; up-to-date" Foreground="#4AE28D" FontSize="8" FontWeight="SemiBold" VerticalAlignment="Center" />
+                                                                    <Button Style="{StaticResource GlassButton}" Content="Update cmd" FontSize="7" Padding="5,1" Margin="8,0,0,0"
+                                                                            Tag="{Binding SuggestedCommand}" Click="CopyToolchainCommandButton_Click"
+                                                                            ToolTip="Copy manual command line to check or update this tool" />
+                                                                </StackPanel>
+
+                                                                <!-- Shown ONLY when toolchain is not yet installed -->
                                                                 <Border Background="#14000000" BorderBrush="#1FFFFFFF" BorderThickness="1" CornerRadius="5"
-                                                                        Padding="5,4" Margin="0,5,0,0">
+                                                                        Padding="5,4" Margin="0,5,0,0" Visibility="{Binding CommandBoxVisibility}">
                                                                     <Grid>
                                                                         <Grid.ColumnDefinitions>
                                                                             <ColumnDefinition Width="*" />
@@ -433,10 +443,14 @@
                                                     Background="#261B8A5A" BorderBrush="#45E18D"
                                                     ToolTip="Show runnable Windows desktop apps, tools &amp; games on GitHub"
                                                     Click="WindowsAppsFeedButton_Click" />
-                                            <Button x:Name="DecompGamesBtn" Style="{StaticResource GlassButton}" Content="🎮 Decomp / Recomp" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                            <Button x:Name="RecompPortsBtn" Style="{StaticResource GlassButton}" Content="⚡ Recomp" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                                    Background="#2B6B22A8" BorderBrush="#B666FF"
+                                                    ToolTip="Show Static Recompilation game ports (N64Recomp, Zelda64Recomp, Majora's Mask, PS2Recomp, XenonRecomp, B2recomp, etc.)"
+                                                    Click="RecompFeedButton_Click" />
+                                            <Button x:Name="DecompProjectsBtn" Style="{StaticResource GlassButton}" Content="🎮 Decomp" Padding="9,5" FontSize="10" Margin="5,0,0,0"
                                                     Background="#2EC85A17" BorderBrush="#FF9248"
-                                                    ToolTip="Show Decompilation &amp; Static Recompilation game ports (N64Recomp, Zelda64, Shipwright, SM64, etc.)"
-                                                    Click="DecompRecompFeedButton_Click" />
+                                                    ToolTip="Show Game Decompilations &amp; Reverse-Engineered Source Ports (SM64, Pokeemerald, Sonic, Ship of Harkinian, OpenGOAL, etc.)"
+                                                    Click="DecompFeedButton_Click" />
                                             <Button x:Name="AntigravityMcpBtn" Style="{StaticResource GlassButton}" Content="🤖 Antigravity / MCP" Padding="9,5" FontSize="10" Margin="5,0,0,0"
                                                     Background="#2E0E8A7A" BorderBrush="#3CE8D0"
                                                     ToolTip="Show Antigravity skills, plugins &amp; MCP servers"
@@ -455,22 +469,32 @@
                                         </StackPanel>
 
                                         <Grid Grid.Column="2" Margin="10,0,6,0">
-                                            <TextBox x:Name="GitHubSearchBox" FontSize="11" Padding="8,5"
-                                                     ToolTip="Search GitHub repositories by topic or keyword (press Enter)"
-                                                     KeyDown="GitHubSearchBox_KeyDown" />
-                                            <TextBlock Text="Filter / search…" Foreground="#52627C" FontSize="10"
-                                                       Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock">
-                                                        <Setter Property="Visibility" Value="Collapsed" />
-                                                        <Style.Triggers>
-                                                            <DataTrigger Binding="{Binding Text, ElementName=GitHubSearchBox}" Value="">
-                                                                <Setter Property="Visibility" Value="Visible" />
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Button x:Name="HideDownloadedButton" Grid.Column="0" Style="{StaticResource GlassButton}"
+                                                    Content="👁 Hide Downloaded" Padding="8,4" FontSize="10" Margin="0,0,6,0"
+                                                    Click="HideDownloadedButton_Click"
+                                                    ToolTip="Toggle hiding repositories that have already been downloaded to keep results fresh" />
+                                            <Grid Grid.Column="1">
+                                                <TextBox x:Name="GitHubSearchBox" FontSize="11" Padding="8,5"
+                                                         ToolTip="Search GitHub repositories by topic or keyword (press Enter)"
+                                                         KeyDown="GitHubSearchBox_KeyDown" />
+                                                <TextBlock Text="Filter / search…" Foreground="#52627C" FontSize="10"
+                                                           Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, ElementName=GitHubSearchBox}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
                                         </Grid>
 
                                         <Button Grid.Column="3" Style="{StaticResource GlassButton}" Content="Search" Padding="10,5" FontSize="10"

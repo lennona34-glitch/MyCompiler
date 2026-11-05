@@ -122,7 +122,41 @@ public sealed partial class GitHubService
     }
 
     /// <summary>
-    /// Fetches Decompilation & Static Recompilation game/engine ports (N64Recomp, Zelda64Recomp, Shipwright, decomp/recomp projects).
+    /// Fetches Static Recompilation game ports and tools (N64Recomp, Zelda64Recomp, Majora's Mask, PS2Recomp, XenonRecomp, B2recomp, etc.).
+    /// </summary>
+    public async Task<IReadOnlyList<GitHubRepoItem>> GetRecompFeedAsync(string? language, CancellationToken token)
+    {
+        var langFilter = !string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase)
+            ? $" language:{language}"
+            : "";
+        var q = $"n64recomp OR zelda64recomp OR ps2recomp OR xenonrecomp OR recomp in:name,description,topics stars:>10{langFilter}";
+        var raw = await SearchRepositoriesCoreAsync(q, token, "⚡ Recomp Port", perPage: 35);
+        return raw
+            .Where(item =>
+                !item.Name.Equals("recompose", StringComparison.OrdinalIgnoreCase) &&
+                !item.Name.Contains("jetpack-compose", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Fetches game decompilation projects & source ports (SM64, Pokeemerald, Pokefirered, Sonic, Ship of Harkinian, OpenGOAL, etc.).
+    /// </summary>
+    public async Task<IReadOnlyList<GitHubRepoItem>> GetDecompFeedAsync(string? language, CancellationToken token)
+    {
+        var langFilter = !string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase)
+            ? $" language:{language}"
+            : "";
+        var q = $"decomp OR decompilation in:name,description,topics stars:>20{langFilter}";
+        var raw = await SearchRepositoriesCoreAsync(q, token, "🎮 Decomp Project", perPage: 35);
+        return raw
+            .Where(item =>
+                !item.Name.Equals("decompose", StringComparison.OrdinalIgnoreCase) &&
+                !item.Name.Equals("decomposition", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+    }
+
+    /// <summary>
+    /// Fetches Decompilation & Static Recompilation game/engine ports (combined legacy method).
     /// </summary>
     public async Task<IReadOnlyList<GitHubRepoItem>> GetDecompRecompFeedAsync(string? language, CancellationToken token)
     {
