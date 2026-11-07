@@ -19,7 +19,7 @@ public sealed class AiSettings
 
     public static readonly IReadOnlyList<AiProviderPreset> Presets =
     [
-        new("Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "gemini-3.8-flash", true, "Google Gemini via AI Studio (Generous Free tier — no credit card needed)", "https://aistudio.google.com/apikey", "GEMINI_API_KEY", ["gemini-3.8-flash", "gemini-3.8-pro", "gemini-2.5-flash"]),
+        new("Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "gemini-3.5-flash", true, "Google Gemini via AI Studio (Generous Free tier — no credit card needed)", "https://aistudio.google.com/apikey", "GEMINI_API_KEY", ["gemini-3.5-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest"]),
         new("OpenAI", "https://api.openai.com/v1/chat/completions", "gpt-4o", true, "Official OpenAI API (requires OpenAI API key)", "https://platform.openai.com/api-keys", "OPENAI_API_KEY", ["gpt-4o", "gpt-4o-mini", "o3-mini"]),
         new("OpenRouter", "https://openrouter.ai/api/v1/chat/completions", "anthropic/claude-3.5-sonnet", true, "Universal router (Claude, DeepSeek, LLaMA, etc.)", "https://openrouter.ai/keys", "OPENROUTER_API_KEY", ["anthropic/claude-3.5-sonnet", "deepseek/deepseek-r1", "meta-llama/llama-3.3-70b-instruct"]),
         new("DeepSeek", "https://api.deepseek.com/chat/completions", "deepseek-chat", true, "DeepSeek V3 / R1 reasoning & coding models", "https://platform.deepseek.com/api_keys", "DEEPSEEK_API_KEY", ["deepseek-chat", "deepseek-reasoner"]),

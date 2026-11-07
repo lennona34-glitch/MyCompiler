@@ -203,6 +203,8 @@ public partial class MainWindow
                         if (s is Button b && b.Tag is string m)
                         {
                             AiModelBox.Text = m;
+                            _aiSettings.Model = m;
+                            UpdateAiModelBadge();
                         }
                     };
                     AiModelSuggestionsPanel.Children.Add(btn);

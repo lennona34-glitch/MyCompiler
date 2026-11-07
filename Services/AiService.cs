@@ -100,7 +100,7 @@ public sealed partial class AiService
                         ["content"] = "Respond with 'OK' and nothing else."
                     }
                 },
-                ["max_tokens"] = 10,
+                ["max_tokens"] = 100,
                 ["temperature"] = 0.0
             };
 
@@ -375,7 +375,7 @@ public sealed partial class AiService
             message.Contains("not supported for generateContent", StringComparison.OrdinalIgnoreCase) ||
             message.Contains("no longer available", StringComparison.OrdinalIgnoreCase))
         {
-            return $"{message}\n\n💡 Tip: For Google Gemini, please use active model 'gemini-3.8-flash' (Fast) or 'gemini-3.8-pro' (Deep).";
+            return $"{message}\n\n💡 Tip: For Google Gemini, please use active fast models 'gemini-3.5-flash', 'gemini-3.5-flash-lite', or 'gemini-flash-lite-latest'.";
         }
 
         return message;
