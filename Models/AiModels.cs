@@ -19,13 +19,13 @@ public sealed class AiSettings
 
     public static readonly IReadOnlyList<AiProviderPreset> Presets =
     [
-        new("OpenAI", "https://api.openai.com/v1/chat/completions", "gpt-4o", true, "Official OpenAI API (requires OpenAI API key)"),
-        new("OpenRouter", "https://openrouter.ai/api/v1/chat/completions", "anthropic/claude-3.5-sonnet", true, "Universal router (Claude, DeepSeek, LLaMA, etc.)"),
-        new("Ollama (Local & Free)", "http://localhost:11434/v1/chat/completions", "qwen2.5-coder", false, "Runs 100% locally & offline on your PC (zero API key needed)"),
-        new("DeepSeek", "https://api.deepseek.com/chat/completions", "deepseek-chat", true, "DeepSeek V3 / R1 reasoning & coding models"),
-        new("Groq (Ultra-Fast)", "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile", true, "Sub-second lightning-fast LLaMA inference"),
-        new("LM Studio (Local)", "http://localhost:1234/v1/chat/completions", "local-model", false, "Local desktop LLM server (zero API key needed)"),
-        new("Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "gemini-1.5-pro", true, "Google Gemini via OpenAI-compatible endpoint"),
+        new("Google Gemini", "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions", "gemini-1.5-flash", true, "Google Gemini via AI Studio (Generous Free tier — no credit card needed)", "https://aistudio.google.com/apikey", "GEMINI_API_KEY"),
+        new("OpenAI", "https://api.openai.com/v1/chat/completions", "gpt-4o", true, "Official OpenAI API (requires OpenAI API key)", "https://platform.openai.com/api-keys", "OPENAI_API_KEY"),
+        new("OpenRouter", "https://openrouter.ai/api/v1/chat/completions", "anthropic/claude-3.5-sonnet", true, "Universal router (Claude, DeepSeek, LLaMA, etc.)", "https://openrouter.ai/keys", "OPENROUTER_API_KEY"),
+        new("DeepSeek", "https://api.deepseek.com/chat/completions", "deepseek-chat", true, "DeepSeek V3 / R1 reasoning & coding models", "https://platform.deepseek.com/api_keys", "DEEPSEEK_API_KEY"),
+        new("Groq (Ultra-Fast)", "https://api.groq.com/openai/v1/chat/completions", "llama-3.3-70b-versatile", true, "Sub-second lightning-fast LLaMA inference", "https://console.groq.com/keys", "GROQ_API_KEY"),
+        new("Ollama (Local & Free)", "http://localhost:11434/v1/chat/completions", "qwen2.5-coder", false, "Runs 100% locally & offline on your PC (zero API key needed)", "https://ollama.com/download"),
+        new("LM Studio (Local)", "http://localhost:1234/v1/chat/completions", "local-model", false, "Local desktop LLM server (zero API key needed)", "https://lmstudio.ai"),
         new("Custom", "", "", false, "Custom OpenAI-compatible endpoint")
     ];
 }
@@ -35,7 +35,9 @@ public sealed record AiProviderPreset(
     string DefaultUrl,
     string DefaultModel,
     bool RequiresApiKey,
-    string Description);
+    string Description,
+    string? ApiKeyUrl = null,
+    string? EnvVarName = null);
 
 public sealed record AiPromptContext(
     string FileName,

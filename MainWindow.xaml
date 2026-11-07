@@ -690,8 +690,15 @@
                                                     <TextBox x:Name="AiApiUrlBox" FontSize="10" Padding="6,4" Margin="0,0,0,7"
                                                              ToolTip="OpenAI-compatible URL (e.g. https://api.openai.com/v1/chat/completions or http://localhost:11434/v1/chat/completions)" />
 
-                                                    <TextBlock Text="API Key" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
-                                                    <Grid Margin="0,0,0,7">
+                                                    <Grid Margin="0,0,0,3">
+                                                        <TextBlock Text="API Key" FontSize="9" Foreground="#8594AD" VerticalAlignment="Center" />
+                                                        <Button x:Name="AiGetKeyLinkButton" Style="{StaticResource GlassButton}"
+                                                                Content="Get Free API Key ↗" HorizontalAlignment="Right"
+                                                                Padding="6,1" FontSize="8" Foreground="#66D9FF" BorderBrush="#3066D9FF"
+                                                                ToolTip="Open provider website to create or copy your API key"
+                                                                Click="AiGetKeyLinkButton_Click" />
+                                                    </Grid>
+                                                    <Grid Margin="0,0,0,5">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*" />
                                                             <ColumnDefinition Width="Auto" />
@@ -701,6 +708,9 @@
                                                         <Button x:Name="AiToggleKeyVisButton" Grid.Column="1" Style="{StaticResource GlassButton}" Content="👁"
                                                                 Padding="7,2" FontSize="10" Margin="4,0,0,0" Click="AiToggleKeyVisibility_Click" />
                                                     </Grid>
+                                                    <TextBlock x:Name="AiEnvDetectedText" Text="" FontSize="8" Foreground="#4AE28D" Margin="0,0,0,6"
+                                                               Visibility="Collapsed" Cursor="Hand" MouseLeftButtonDown="AiEnvDetectedText_Click"
+                                                               ToolTip="Click to automatically use this detected API key" />
 
                                                     <TextBlock Text="Model Name" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
                                                     <TextBox x:Name="AiModelBox" FontSize="10" Padding="6,4" Margin="0,0,0,9"

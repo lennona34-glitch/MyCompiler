@@ -134,6 +134,85 @@ public partial class MainWindow
             AiModelBox.Text = preset.DefaultModel;
             AiPingStatusText.Text = preset.Description;
         }
+
+        UpdatePresetKeyUi(preset);
+    }
+
+    private void UpdatePresetKeyUi(AiProviderPreset preset)
+    {
+        if (AiGetKeyLinkButton is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(preset.ApiKeyUrl))
+            {
+                AiGetKeyLinkButton.Visibility = Visibility.Visible;
+                AiGetKeyLinkButton.Content = preset.Name.Contains("Gemini", StringComparison.OrdinalIgnoreCase)
+                    ? "Get Free Gemini Key ↗"
+                    : $"Get {preset.Name} Key ↗";
+                AiGetKeyLinkButton.Tag = preset.ApiKeyUrl;
+            }
+            else
+            {
+                AiGetKeyLinkButton.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        if (AiEnvDetectedText is not null)
+        {
+            if (!string.IsNullOrWhiteSpace(preset.EnvVarName))
+            {
+                var envVal = Environment.GetEnvironmentVariable(preset.EnvVarName);
+                if (!string.IsNullOrWhiteSpace(envVal))
+                {
+                    AiEnvDetectedText.Text = $"💡 Found %{preset.EnvVarName}% in your environment (click to use)";
+                    AiEnvDetectedText.Tag = envVal;
+                    AiEnvDetectedText.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    AiEnvDetectedText.Visibility = Visibility.Collapsed;
+                }
+            }
+            else
+            {
+                AiEnvDetectedText.Visibility = Visibility.Collapsed;
+            }
+        }
+    }
+
+    private void AiGetKeyLinkButton_Click(object sender, RoutedEventArgs e)
+    {
+        var url = (sender as Button)?.Tag as string;
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            url = "https://aistudio.google.com/apikey";
+        }
+
+        try
+        {
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = url,
+                UseShellExecute = true
+            });
+            AiPingStatusText.Text = "Opened API key creation page in your browser.";
+            AiPingStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#66D9FF"));
+        }
+        catch (Exception ex)
+        {
+            AiPingStatusText.Text = $"Could not open browser: {ex.Message}";
+        }
+    }
+
+    private void AiEnvDetectedText_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is TextBlock tb && tb.Tag is string key && !string.IsNullOrWhiteSpace(key))
+        {
+            AiApiKeyBox.Password = key;
+            AiApiKeyPlainBox.Text = key;
+            AiEnvDetectedText.Visibility = Visibility.Collapsed;
+            AiPingStatusText.Text = "✓ Applied API key from environment variable!";
+            AiPingStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
+        }
     }
 
     private void AiToggleKeyVisibility_Click(object sender, RoutedEventArgs e)
