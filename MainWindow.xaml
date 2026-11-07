@@ -6,6 +6,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         mc:Ignorable="d"
         Title="MyCompiler" Width="1440" Height="900" MinWidth="1080" MinHeight="680"
+        Icon="Assets/mycompiler.ico"
         WindowStartupLocation="CenterScreen" WindowStyle="None" ResizeMode="CanResize"
         Background="#060B14" Foreground="{StaticResource TextPrimary}"
         FontFamily="Segoe UI Variable Text, Segoe UI" PreviewKeyDown="Window_PreviewKeyDown"
@@ -37,16 +38,9 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
-                            <Border Width="31" Height="31" CornerRadius="9" Margin="0,0,10,0">
-                                <Border.Background>
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#7DEBFF" Offset="0" />
-                                        <GradientStop Color="#4E6BFF" Offset="0.58" />
-                                        <GradientStop Color="#9E62FF" Offset="1" />
-                                    </LinearGradientBrush>
-                                </Border.Background>
-                                <TextBlock Text="M" Foreground="#07101B" FontWeight="Black" FontSize="18"
-                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <Border Width="31" Height="31" CornerRadius="8" Margin="0,0,10,0" ClipToBounds="True"
+                                    BorderBrush="#35FFFFFF" BorderThickness="1" Background="#0A0D14">
+                                <Image Source="Assets/mycompiler.png" Width="29" Height="29" RenderOptions.BitmapScalingMode="HighQuality" />
                             </Border>
                             <StackPanel VerticalAlignment="Center">
                                 <TextBlock Text="MyCompiler" FontWeight="Bold" FontSize="15" />
@@ -866,8 +860,26 @@
                                 <!-- Row 3: Modal Footer Status -->
                                 <Border Grid.Row="3" Background="#B80C1422" BorderBrush="#20FFFFFF" BorderThickness="0,1,0,0" Padding="18,8">
                                     <Grid>
-                                        <TextBlock x:Name="AiStatusText" Text="Ready. Click any quick prompt above or type your instruction."
-                                                   FontSize="10" Foreground="#8592A8" VerticalAlignment="Center" />
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <TextBlock x:Name="AiStatusText" Text="Ready. Click any quick prompt above or type your instruction."
+                                                       FontSize="10" Foreground="#8592A8" VerticalAlignment="Center" />
+                                            <!-- Action Buttons Shown Immediately Upon Clicking 'Apply to Code' -->
+                                            <StackPanel x:Name="AiPostApplyActionPanel" Orientation="Horizontal" Margin="14,0,0,0" Visibility="Collapsed" VerticalAlignment="Center">
+                                                <TextBlock Text="Next:" FontSize="9" FontWeight="Bold" Foreground="#4AE28D" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                <Button x:Name="AiCloseAndReviewButton" Style="{StaticResource PrimaryButton}" Content="✕ Close &amp; Review in Editor"
+                                                        Background="#25355580" BorderBrush="#60A5FA" Foreground="#93C5FD"
+                                                        Padding="9,3" FontSize="9" FontWeight="SemiBold" Margin="0,0,6,0"
+                                                        Click="AiCloseAndReviewButton_Click" ToolTip="Close AI Studio to inspect the updated code directly in the syntax editor" />
+                                                <Button x:Name="AiBuildRunAppliedButton" Style="{StaticResource PrimaryButton}" Content="▶ Build &amp; Run (F5)"
+                                                        Background="#35166534" BorderBrush="#4ADE80" Foreground="#BBF7D0"
+                                                        Padding="9,3" FontSize="9" FontWeight="Bold" Margin="0,0,6,0"
+                                                        Click="AiBuildRunAppliedButton_Click" ToolTip="Close AI Studio and immediately compile &amp; run this code" />
+                                                <Button x:Name="AiPostApplyGitForkButton" Style="{StaticResource GlassButton}" Content="🔀 Git Fork &amp; Push"
+                                                        Background="#182E6B3E" BorderBrush="#4AE28D" Foreground="#6AF5A5"
+                                                        Padding="9,3" FontSize="9" Margin="0,0,6,0"
+                                                        Click="AiPostApplyGitForkButton_Click" ToolTip="Open Git Fork &amp; Commit panel to commit this refactor" />
+                                            </StackPanel>
+                                        </StackPanel>
                                         <TextBlock x:Name="AiModelInfoText" Text="OpenAI · gpt-4o"
                                                    FontSize="9" Foreground="#66D9FF" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>

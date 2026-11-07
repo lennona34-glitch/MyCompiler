@@ -108,6 +108,8 @@ public partial class MainWindow
         }
 
         AiStudioOverlay.Visibility = Visibility.Visible;
+        if (AiPostApplyActionPanel is not null && _aiUndoSnapshot is null)
+            AiPostApplyActionPanel.Visibility = Visibility.Collapsed;
         AiPromptBox.Focus();
 
         _ = RefreshGitStatusAsync();
@@ -149,7 +151,12 @@ public partial class MainWindow
 
                3. Click [▶ Generate & Refactor] (or press Ctrl+Enter).
 
-               4. When Gemini finishes, click [⚡ Apply to Code] to inject it!
+               4. When Gemini finishes, click [⚡ Apply to Code] to inject it directly into the editor!
+
+               5. Next Steps after applying:
+                  • Click [✕ Close & Review] to inspect the modified code in the syntax editor
+                  • Click [▶ Build & Run (F5)] to immediately compile and test
+                  • Click [🔀 Commit to Git] to commit & push your refactored fork to GitHub!
             ═══════════════════════════════════════════════════════════════════════════
             """;
     }
@@ -514,6 +521,11 @@ public partial class MainWindow
         AiGenerateButton.IsEnabled = false;
         AiStopButton.IsEnabled = true;
         AiApplyCodeButton.IsEnabled = false;
+        AiApplyCodeButton.Content = "⚡ Apply to Code";
+        AiApplyCodeButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3045E18D"));
+        AiApplyCodeButton.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#45E18D"));
+        AiApplyCodeButton.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A2FFC8"));
+        if (AiPostApplyActionPanel is not null) AiPostApplyActionPanel.Visibility = Visibility.Collapsed;
         AiCopyCodeButton.IsEnabled = false;
         AiSaveNewFileButton.IsEnabled = false;
 
@@ -609,7 +621,15 @@ public partial class MainWindow
         UpdateLineNumbers();
 
         AiUndoCodeButton.Visibility = Visibility.Visible;
-        AiStatusText.Text = "✓ Code applied to active editor! Press F5 to build & run, or click '↩ Undo Edit'.";
+        AiApplyCodeButton.Content = "✓ Applied";
+        AiApplyCodeButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#35166534"));
+        AiApplyCodeButton.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4ADE80"));
+        AiApplyCodeButton.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#DCFCE7"));
+
+        if (AiPostApplyActionPanel is not null)
+            AiPostApplyActionPanel.Visibility = Visibility.Visible;
+
+        AiStatusText.Text = "✓ Code applied to active editor!";
         AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
     }
 
@@ -625,8 +645,33 @@ public partial class MainWindow
         UpdateLineNumbers();
 
         AiUndoCodeButton.Visibility = Visibility.Collapsed;
+        AiApplyCodeButton.Content = "⚡ Apply to Code";
+        AiApplyCodeButton.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#3045E18D"));
+        AiApplyCodeButton.BorderBrush = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#45E18D"));
+        AiApplyCodeButton.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#A2FFC8"));
+
+        if (AiPostApplyActionPanel is not null)
+            AiPostApplyActionPanel.Visibility = Visibility.Collapsed;
+
         AiStatusText.Text = "↩ Original code restored.";
         AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#8592A8"));
+    }
+
+    private void AiCloseAndReviewButton_Click(object sender, RoutedEventArgs e)
+    {
+        CloseAiStudioOverlay();
+        SourceEditor.Focus();
+    }
+
+    private async void AiBuildRunAppliedButton_Click(object sender, RoutedEventArgs e)
+    {
+        CloseAiStudioOverlay();
+        await BuildAsync(runAfterBuild: true);
+    }
+
+    private void AiPostApplyGitForkButton_Click(object sender, RoutedEventArgs e)
+    {
+        QuickAction_GitFork_Click(sender, e);
     }
 
     private void AiCopyCodeButton_Click(object sender, RoutedEventArgs e)

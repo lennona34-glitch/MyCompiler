@@ -1,73 +1,131 @@
-# MyCompiler
+# MyCompiler 🏛️
 
-MyCompiler is a native Windows compiler workbench with an editor, workspace explorer, live toolchain detection, integrated build output, build/run cancellation, and an original art background.
+> **The Universal Native Windows Compiler Workbench & AI Refactor Studio**  
+> *Zero-configuration development, GitHub instant fetch & run, Gemini AI code transformation, Antigravity skill detection, and multi-engine binary decompilation.*
 
-Version 1.1 adds reliable standalone `.py` / `.pyw` to `.exe` packaging and improves concurrent compiler-output capture.
+![MyCompiler Icon](Assets/mycompiler.png)
 
-Version 1.2 adds a read-only PATH Doctor plus visible, copyable setup/update instructions on every Toolchains card. The `Tools` folder also contains a standalone persistent-PATH audit.
+[![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%7C%2011-blue?style=flat-square&logo=windows)](https://github.com/lennona34-glitch/MyCompiler)
+[![Runtime](https://img.shields.io/badge/.NET-9.0%20WPF%20(Self--Contained)-512BD4?style=flat-square&logo=dotnet)](https://github.com/lennona34-glitch/MyCompiler)
+[![AI Powered](https://img.shields.io/badge/AI%20Studio-Google%20Gemini%20%2F%20OpenAI-4E88FF?style=flat-square&logo=google)](https://aistudio.google.com/)
+[![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)](LICENSE)
 
-Version 1.3 adds **Decompile**: recover readable code from your own `.exe`, `.dll`, `.apk` and `.jar` files when the source is lost.
+---
 
-Version 1.4+ adds **⚡ GitHub Hub** and **⛶ Full Screen Mode**:
-- **⚡ GitHub Instant Fetch, Build & Run**: Browse **GitHub Trending** (`Today` / `Week` / `Month`), curated category feeds (**`★ Windows Apps`**, **`🎮 Decomp / Recomp`** game ports, **`🤖 Antigravity / MCP`** skills & servers), live repository search, or paste/drop any GitHub repository, single source file (`/blob/`), or Gist URL for zero-command automated download, smart workspace classification, prebuilt Windows Release binary fast-path, build, and execution.
-- **⛶ Full Screen Mode**: Click **`⛶`** in the title bar or press `F11` (and `Esc` to exit) for a distraction-free borderless workbench.
+## ✨ What is MyCompiler?
 
-## Start
+**MyCompiler** transforms Windows into an effortless developer playground. Whether you're hacking on a single-file C# / Python script, exploring trending open-source projects from GitHub, de-obfuscating binary releases, or using artificial intelligence to modernize and re-theme legacy codebases, MyCompiler handles the toolchains, builds, execution, and git workflow without terminal friction.
 
-Run `MyCompiler.exe`. Open or drop a source file/folder (or click **⚡ GitHub**), then use:
+---
 
-- `F6` — build or validate
-- `F5` — build and run
-- `F11` — toggle Full Screen mode
-- `Esc` — close modal / stop an active process / exit Full Screen
-- `Ctrl+S` — save
-- `Ctrl+F` — find in the current file
+## 🚀 Key Highlights in Version 1.4
 
-The executable is self-contained; Windows does not need a separate .NET installation to launch it.
+### 1. ⚡ MyCompiler AI Studio (Powered by Google Gemini)
+Never get stuck on compiler errors, missing dependencies, or outdated code again:
+- **Free Google Gemini Integration**: Sub-second streaming using Google's active `gemini-3.5-flash` and `gemini-3.5-flash-lite` models. Click **"Get Free Gemini Key ↗"** to generate an API key in seconds directly from Google AI Studio.
+- **One-Click Quick Actions**:
+  - `⚡ Refactor Code`: Modernize architecture, adopt idioms, optimize speed, and clean types.
+  - `💙 Make Neon Blue`: Transform dull or warm/orange UI accent themes into radiant cyan and neon blue glassmorphism.
+  - `🌙 Give Dark Mode`: Convert any UI codebase into sleek obsidian/navy dark mode.
+  - `🔤 Modern Font`: Update typography to modern developer typefaces (*Cascadia Code*, *Segoe UI Variable*, *JetBrains Mono*).
+  - `🐛 Fix Build Error`: Automatically captures the latest compilation diagnostic from the output console and prompts the AI to resolve it.
+  - `📖 Explain Code`: Deconstructs complex algorithms, decompiled C/Java outputs, or entire modules in crystal-clear English.
+  - `🔀 Git Fork & Push`: Generates conventional commit messages (`feat: ...`, `refactor: ...`) and commits & pushes your refactored code to GitHub.
 
-## PATH Doctor
+#### What to do after clicking "⚡ Apply to Code"?
+Once you click **"⚡ Apply to Code"**, the AI's proposed solution is immediately written into your active editor buffer! MyCompiler then presents 3 immediate actions right at your fingertips:
+1. **`✕ Close & Review in Editor`**: Closes the AI Studio overlay so you can view, edit, and explore the freshly injected code with syntax highlighting.
+2. **`▶ Build & Run (F5)`**: Closes AI Studio and immediately triggers compilation and execution. Test your AI changes in real time!
+3. **`🔀 Commit to Git`**: Opens the Git Fork & Commit panel to commit your refactored code with an AI-drafted commit message and push it to your GitHub fork.
+*(Made an accidental change? Just click **`↩ Undo Edit`** to instantly restore your original code).*
 
-Choose **PATH** above the Toolchains list to print a read-only report in Build Output. It checks invalid and duplicate PATH folders and shows the exact executable MyCompiler resolves for each available toolchain. Each card now displays a setup or update instruction with a copy button. These commands are intended for PowerShell; MyCompiler never installs or uninstalls toolchains automatically.
+---
 
-You can also double-click `Tools\Run-PATH-Test.cmd` for the same kind of persistent machine/user PATH check outside MyCompiler. A program being absent from PATH is not, by itself, a reason to uninstall it. Repair PATH first when the installation is otherwise healthy.
+### 2. 🌐 GitHub Instant Fetch, Build & Run
+- **Zero Command-Line Repo Exploration**: Paste any GitHub repository URL (`github.com/owner/repo`), file blob (`/blob/main/program.cs`), or Gist to instantly download, categorize, build, and run.
+- **Trending & Search Feeds**:
+  - Filter by `Today`, `Week`, `Month`.
+  - Explore curated channels: **`★ Windows Apps`**, **`⚡ Recomp`** & **`🎮 Decomp`** game ports, and **`🤖 Antigravity / MCP`** skills & tools.
+- **`✨ AI Refactor` on Every Card**: See an open-source project you want to enhance? Click `✨ AI Refactor` right on the search card. MyCompiler clones the repository, loads the main entry point, and opens AI Studio with a tailored refactoring prompt ready to go.
+- **Prebuilt Windows Release Fast-Path**: If a repository includes prebuilt `.exe` releases inside zips, MyCompiler detects and extracts them automatically.
 
-## Decompile
+---
 
-Choose **⇲ Decompile** or drop an `.exe`, `.dll`, `.apk`, `.aab`, `.dex` or `.jar` onto the window. MyCompiler detects the binary type, runs the matching tool, and opens the result as a workspace. Output goes to `%LOCALAPPDATA%\MyCompiler\Decompiled\<name>_<timestamp>`.
+### 3. 🤖 Antigravity Agent Skills Auto-Detection & Installer
+- Automatically scans repositories for `SKILL.md` or `skills.md` files.
+- Built-in terminal command: type `install` in the bottom custom command bar to automatically register the discovered skills into your global agent environment (`~/.gemini/config/skills/`).
 
-| Binary | Tool | You get |
+---
+
+### 4. ⇲ Multi-Engine Decompiler Suite
+Recover readable source code from existing binaries with built-in decompiler bridges:
+
+| Binary Type | Engine | Output Produced |
 |---|---|---|
-| .NET assembly, single-file app, or apphost + `.dll` | ilspycmd | C# project per app assembly (built-in single-file bundle extractor; framework DLLs skipped) |
-| PyInstaller `.exe` | pyinstxtractor + pycdc | `.py` source; falls back to a `dis` bytecode listing when pycdc doesn't support the Python version yet |
-| `.apk` / `.aab` / `.dex` / `.jar` | jadx | Java sources and decoded resources/manifest |
-| Native C/C++/Rust/Go `.exe`/`.dll` | Ghidra headless | One approximate `.c` file (not original source; analysis can take minutes) |
+| **.NET Executable / Assembly** (`.exe`, `.dll`) | `ilspycmd` | Clean C# project per assembly (with single-file bundle extraction) |
+| **Android Package / Archive** (`.apk`, `.jar`, `.dex`) | `jadx` | Java source code, decoded layouts, and `AndroidManifest.xml` |
+| **Python Standalone Binary** (`PyInstaller .exe`) | `pyinstxtractor` + `pycdc` | Python (`.py`) scripts and decompiled bytecode |
+| **Native C / C++ / Rust / Go Binary** (`.exe`, `.dll`) | `Ghidra Headless` | Approximate C source via automated Ghidra decompiler script |
 
-Install or update the tools with `Tools\Install-Decompilers.ps1` (per-user, no PATH changes, needs Java 21 for jadx/Ghidra). Each tool has a readiness card in Toolchains with a copyable setup command. Only decompile software you own or are licensed to inspect.
+*Run `Tools\Install-Decompilers.ps1` to configure and update all decompiler engines in one step.*
 
-## Supported recipes
+---
 
-MyCompiler recognizes .NET solutions/projects, Cargo, Go modules, npm/TypeScript packages, Maven, Gradle, CMake, and Make projects. Single-file recipes cover C#, F#, Visual Basic, C, C++, Rust, Go, Java, Kotlin, Scala, Swift, Zig, Dart, Pascal, Nim, D, Haskell, OCaml, TypeScript, JavaScript, Python, Ruby, PHP, PowerShell, Bash, Lua, R, and Elixir.
+### 5. 🏛️ New Visual Identity: White Marble on Obsidian Black
+MyCompiler features a brand new sculptural app icon: an **"M" crafted from Italian white Carrara marble** with organic slate veins, chiseled bevels, specular lighting, and a soft ambient drop shadow resting on a sleek obsidian black pedestal.
 
-### Python → EXE
+---
 
-Open a `.py` or `.pyw` file and choose **Build** or **Build & run**. MyCompiler packages it as a standalone Windows executable with PyInstaller and writes the result to `dist\script-name.exe` beside the source file. `.pyw` files are packaged without a console window. The Toolchains panel includes a separate **Python → EXE** readiness check. If it is unavailable, install the packager once with `py -3 -m pip install pyinstaller` and refresh Toolchains.
+## ⌨️ Essential Keyboard Shortcuts
 
-MyCompiler orchestrates the real compiler or interpreter for each language. Install the toolchains you use and ensure their executable is on `PATH`; the Toolchains panel shows what is available. For uncommon build systems, enter an executable and arguments in the custom command lane at the bottom. Custom commands run directly without an interactive shell, except `.cmd`/`.bat` launchers required by Windows tools such as npm.
+| Shortcut | Action |
+|---|---|
+| **`F5`** | **Build & Run** (Compiles code and runs executable immediately) |
+| **`F6`** | **Build Only** (Compiles/validates without executing) |
+| **`F11`** | **Toggle Full Screen Mode** (Distraction-free borderless workbench) |
+| **`Ctrl + Enter`** | **Generate with AI** (Inside AI Studio) |
+| **`Ctrl + S`** | **Save Active File** |
+| **`Ctrl + F`** | **Find in File** |
+| **`Esc`** | **Close Overlay / Stop Process / Exit Full Screen** |
 
-## Build from source
+---
 
-Requirements: Windows 10/11 and .NET SDK 9.
+## 🛠️ Supported Languages & Toolchains
 
+MyCompiler orchestrates your system's native toolchains with intelligent project recipes:
+- **.NET Solutions & Files**: C#, F#, Visual Basic (`dotnet`, `csc`, `fsc`)
+- **Systems Languages**: C, C++, Rust (Cargo), Go, Zig, Swift, D, Nim
+- **JVM Languages**: Java, Kotlin, Scala, Groovy (`javac`, `mvn`, `gradle`)
+- **Scripting & Dynamic**: Python, Ruby, PHP, PowerShell, Bash, Lua, R, Elixir
+- **Web & Modern Stacks**: TypeScript, JavaScript (`npm`, `pnpm`, `bun`, `deno`)
+- **Python to Standalone EXE**: Packages any `.py` or `.pyw` into a portable Windows executable using PyInstaller in 1 click.
+
+---
+
+## 📦 Building from Source
+
+### Requirements
+- **Windows 10 / 11** (x64)
+- **.NET 9.0 SDK**
+
+### Build & Run
 ```powershell
+# Clone the repository
+git clone https://github.com/lennona34-glitch/MyCompiler.git
+cd MyCompiler
+
+# Build Release
 dotnet build MyCompiler.csproj -c Release
-dotnet run --project MyCompiler.csproj
+
+# Publish Single-File Binary
+dotnet publish MyCompiler.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o bin\Publish
 ```
 
-Build artifacts for compiled single files are cached under `%LOCALAPPDATA%\MyCompiler\BuildCache` so source folders stay clean.
+The resulting standalone executable will be generated at `bin\Publish\MyCompiler.exe`.
 
-## Notes
+---
 
-- Installed language toolchains are not bundled with MyCompiler.
-- Running build scripts or programs executes code from the opened workspace; use trusted source code.
-- Some project types do not have an unambiguous default executable. MyCompiler builds them and reports that a run recipe is not defined.
-- The original background artwork is bundled as `Assets/compiler-art.png`.
+## ⚖️ License & Attribution
+
+- Released under the [MIT License](LICENSE).
+- Powered by Google Gemini AI & the open-source community.
