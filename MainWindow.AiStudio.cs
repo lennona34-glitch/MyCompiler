@@ -69,18 +69,21 @@ public partial class MainWindow
         var lang = _compiler.DetectLanguage(_currentFile ?? "welcome.cs")?.DisplayName ?? "C#";
         AiTargetFileText.Text = $"📄 {fileName} ({lang})";
 
+        string scopeDesc;
         var hasSelection = SourceEditor.SelectionLength > 0;
         if (hasSelection)
         {
             var lines = SourceEditor.SelectedText.Split('\n').Length;
             AiContextScopeText.Text = "Selected code";
-            AiSelectionStatusText.Text = $"Selected snippet ({lines} lines, {SourceEditor.SelectedText.Length:N0} chars)";
+            scopeDesc = $"Selected snippet ({lines} lines, {SourceEditor.SelectedText.Length:N0} chars)";
+            AiSelectionStatusText.Text = scopeDesc;
         }
         else
         {
             var lines = SourceEditor.Text.Split('\n').Length;
             AiContextScopeText.Text = "Full file";
-            AiSelectionStatusText.Text = $"Entire file ({lines} lines, {SourceEditor.Text.Length:N0} chars)";
+            scopeDesc = $"Entire file ({lines} lines, {SourceEditor.Text.Length:N0} chars)";
+            AiSelectionStatusText.Text = scopeDesc;
         }
 
         var outText = OutputBox.Text;
@@ -95,10 +98,90 @@ public partial class MainWindow
             AiErrorStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#52627A"));
         }
 
+        // Display welcoming context card if Response Box is empty or showing previous welcome guide
+        if (string.IsNullOrWhiteSpace(AiResponseBox.Text) || AiResponseBox.Text.StartsWith("✨ MyCompiler AI Studio"))
+        {
+            AiResponseBox.Text = GetAiStudioWelcomeText(fileName, lang, scopeDesc);
+            _showingContextPreview = false;
+            if (AiPreviewContextButton is not null)
+                AiPreviewContextButton.Content = "👁 View Input Code";
+        }
+
         AiStudioOverlay.Visibility = Visibility.Visible;
         AiPromptBox.Focus();
 
         _ = RefreshGitStatusAsync();
+    }
+
+    private string GetAiStudioWelcomeText(string fileName, string lang, string scopeDesc)
+    {
+        var sampleCode = SourceEditor.SelectionLength > 0
+            ? SourceEditor.SelectedText
+            : SourceEditor.Text;
+
+        var previewLines = (sampleCode ?? "").Split('\n').Take(12).ToArray();
+        var previewSnippet = string.Join("\n", previewLines);
+        if ((sampleCode ?? "").Split('\n').Length > 12) previewSnippet += "\n... (more lines in editor)";
+
+        return $"""
+            ✨ MyCompiler AI Studio is ready!
+            ═══════════════════════════════════════════════════════════════════════════
+            🎯 ACTIVE TARGET CONTEXT:
+               File:  {fileName} ({lang})
+               Scope: {scopeDesc}
+               AI Studio automatically reads your active editor code into context.
+
+            📝 ACTIVE CODE PREVIEW:
+            ---------------------------------------------------------------------------
+            {previewSnippet}
+            ---------------------------------------------------------------------------
+
+            🚀 HOW TO SEND INSTRUCTIONS TO LORD GEMINI:
+               1. Click any quick prompt chip above:
+                  ⚡ Refactor Code   💙 Make Neon Blue   🌙 Give Dark Mode
+                  🔤 Modern Font     🐛 Fix Build Error  📖 Explain Code
+
+               2. Or type your custom instruction in the prompt box on the left, e.g.:
+                  • "Refactor this open source code following clean, modern idioms"
+                  • "Make everything orange in the app neon blue"
+                  • "Add async background processing to improve UI responsiveness"
+                  • "Change the color palette to cyberpunk glassmorphism"
+
+               3. Click [▶ Generate & Refactor] (or press Ctrl+Enter).
+
+               4. When Gemini finishes, click [⚡ Apply to Code] to inject it!
+            ═══════════════════════════════════════════════════════════════════════════
+            """;
+    }
+
+    private bool _showingContextPreview = false;
+
+    private void AiPreviewContextButton_Click(object sender, RoutedEventArgs e)
+    {
+        _showingContextPreview = !_showingContextPreview;
+        if (_showingContextPreview)
+        {
+            var fileName = _currentFile is not null ? Path.GetFileName(_currentFile) : "welcome.cs";
+            var lang = _compiler.DetectLanguage(_currentFile ?? "welcome.cs")?.DisplayName ?? "C#";
+            var code = SourceEditor.SelectionLength > 0 ? SourceEditor.SelectedText : SourceEditor.Text;
+            AiResponseBox.Text = $"// === ACTIVE CODE IN EDITOR: {fileName} ({lang}) ===\n\n{code}";
+            if (AiPreviewContextButton is not null)
+                AiPreviewContextButton.Content = "📄 View AI Response";
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(_aiExtractedCode))
+                AiResponseBox.Text = _aiExtractedCode;
+            else
+            {
+                var fileName = _currentFile is not null ? Path.GetFileName(_currentFile) : "welcome.cs";
+                var lang = _compiler.DetectLanguage(_currentFile ?? "welcome.cs")?.DisplayName ?? "C#";
+                var scopeDesc = SourceEditor.SelectionLength > 0 ? "Selected code" : "Full file";
+                AiResponseBox.Text = GetAiStudioWelcomeText(fileName, lang, scopeDesc);
+            }
+            if (AiPreviewContextButton is not null)
+                AiPreviewContextButton.Content = "👁 View Input Code";
+        }
     }
 
     private void CloseAiStudioOverlay()

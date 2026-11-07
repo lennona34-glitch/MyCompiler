@@ -1545,6 +1545,28 @@ public partial class MainWindow : Window
             await ProcessGitHubUrlAsync(url, autoBuildAndRun: true);
     }
 
+    private async void TrendingCardAiRefactor_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { Tag: string url })
+        {
+            var item = TrendingRepos.FirstOrDefault(r => r.HtmlUrl.Equals(url, StringComparison.OrdinalIgnoreCase));
+            if (item is not null)
+            {
+                var existing = FindDownloadedRepoFolder(item.FullName, item.Name, item.Owner);
+                if (existing is not null)
+                {
+                    GitHubOverlay.Visibility = Visibility.Collapsed;
+                    await OpenWorkspaceAsync(existing);
+                    OpenAiStudioOverlay();
+                    AiPromptBox.Text = "Refactor this open source code following clean, modern best practices, idiomatic patterns, strong type safety, and optimal performance.";
+                    return;
+                }
+            }
+
+            await ProcessGitHubUrlAsync(url, autoBuildAndRun: false, openAiStudioAfter: true);
+        }
+    }
+
     private async Task RefreshWindowsAppsFeedAsync()
     {
         _trendingCts?.Cancel();
@@ -1691,7 +1713,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task ProcessGitHubUrlAsync(string? rawUrl, bool autoBuildAndRun)
+    private async Task ProcessGitHubUrlAsync(string? rawUrl, bool autoBuildAndRun, bool openAiStudioAfter = false)
     {
         if (string.IsNullOrWhiteSpace(rawUrl) || _operationCts is not null)
             return;
@@ -1745,6 +1767,14 @@ public partial class MainWindow : Window
                     return;
                 }
 
+                if (openAiStudioAfter)
+                {
+                    OpenAiStudioOverlay();
+                    AiPromptBox.Text = "Refactor this open source code following clean, modern best practices, idiomatic patterns, strong type safety, and optimal performance.";
+                    SetOutputState(true, "Loaded in AI Studio");
+                    return;
+                }
+
                 if (autoBuildAndRun)
                 {
                     AppendOutput(string.Empty);
@@ -1771,6 +1801,14 @@ public partial class MainWindow : Window
 
             if (classification.EntryPath is not null && File.Exists(classification.EntryPath))
                 await LoadFileAsync(classification.EntryPath);
+
+            if (openAiStudioAfter)
+            {
+                OpenAiStudioOverlay();
+                AiPromptBox.Text = "Refactor this open source code following clean, modern best practices, idiomatic patterns, strong type safety, and optimal performance.";
+                SetOutputState(true, $"Loaded in AI Studio · {classification.BadgeText}");
+                return;
+            }
 
             var detectedSkills = FindSkillFiles(downloadedPath);
 

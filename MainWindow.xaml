@@ -549,6 +549,10 @@
                                                                 <Button Style="{StaticResource PrimaryButton}" Content="⚡ Install &amp; Run" Padding="12,7" FontSize="10"
                                                                         Margin="7,0,0,0" Tag="{Binding HtmlUrl}" Click="TrendingCardInstallRun_Click"
                                                                         ToolTip="Automated download, project detection, build (or release EXE fallback), and launch" />
+                                                                <Button Style="{StaticResource GlassButton}" Content="✨ AI Refactor" Padding="10,7" FontSize="10"
+                                                                        Margin="7,0,0,0" Tag="{Binding HtmlUrl}" Background="#2E802090" BorderBrush="#B666FF" Foreground="#E2B8FF"
+                                                                        Click="TrendingCardAiRefactor_Click"
+                                                                        ToolTip="Open or download this open-source repository and immediately launch AI Studio to refactor &amp; advance it" />
                                                                 <Button Style="{StaticResource GlassButton}" Content="✓" Padding="8,7" FontSize="11" Margin="6,0,0,0"
                                                                         Foreground="{Binding CheckmarkBrush}" Tag="{Binding}" Click="ToggleMarkDownloaded_Click"
                                                                         ToolTip="{Binding CheckmarkTooltip}" />
@@ -775,9 +779,24 @@
 
                                             <!-- Prompt Input Card -->
                                             <TextBlock Text="YOUR INSTRUCTION / PROMPT" FontSize="9" FontWeight="Bold" Foreground="#8592A8" Margin="0,0,0,5" />
-                                            <TextBox x:Name="AiPromptBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" Height="150" FontSize="11" Padding="9,7"
-                                                     VerticalScrollBarVisibility="Auto" Margin="0,0,0,8" KeyDown="AiPromptBox_KeyDown"
-                                                     ToolTip="Enter your instruction. Press Ctrl+Enter to generate." />
+                                            <Grid Margin="0,0,0,8">
+                                                <TextBox x:Name="AiPromptBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" Height="150" FontSize="11" Padding="9,7"
+                                                         VerticalScrollBarVisibility="Auto" KeyDown="AiPromptBox_KeyDown"
+                                                         ToolTip="Enter your instruction. Press Ctrl+Enter to generate." />
+                                                <TextBlock Text="Type an instruction here (e.g. 'Refactor this code', 'Make neon blue', 'Add async')... or click a prompt above"
+                                                           Foreground="#50607A" FontSize="10" Margin="12,9,0,0" VerticalAlignment="Top" IsHitTestVisible="False">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock">
+                                                            <Setter Property="Visibility" Value="Collapsed" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding Text, ElementName=AiPromptBox}" Value="">
+                                                                    <Setter Property="Visibility" Value="Visible" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Grid>
 
                                             <Grid>
                                                 <Grid.ColumnDefinitions>
@@ -810,7 +829,12 @@
                                             <!-- Response Header Bar -->
                                             <Border Grid.Row="0" Background="#90111A29" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1" Padding="12,0">
                                                 <Grid>
-                                                    <TextBlock Text="PROPOSED CODE &amp; EXPLANATION" FontSize="10" FontWeight="Bold" Foreground="#899AB5" VerticalAlignment="Center" />
+                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                        <TextBlock Text="PROPOSED CODE &amp; EXPLANATION" FontSize="10" FontWeight="Bold" Foreground="#899AB5" VerticalAlignment="Center" />
+                                                        <Button x:Name="AiPreviewContextButton" Style="{StaticResource GlassButton}"
+                                                                Content="👁 View Input Code" Padding="7,2" FontSize="9" Margin="10,0,0,0" VerticalAlignment="Center"
+                                                                Click="AiPreviewContextButton_Click" ToolTip="Preview the active file or selection being sent to the AI" />
+                                                    </StackPanel>
 
                                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
                                                         <Button x:Name="AiUndoCodeButton" Style="{StaticResource GlassButton}" Content="↩ Undo Edit"
