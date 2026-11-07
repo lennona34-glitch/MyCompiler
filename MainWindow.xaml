@@ -158,6 +158,9 @@
                                     <Button x:Name="GitHubHubButton" Style="{StaticResource GlassButton}" Content="⚡  GitHub" Margin="0,0,8,0"
                                             Background="#2A3E78FF" BorderBrush="#649BFF"
                                             ToolTip="Browse GitHub Trending or paste any GitHub file/repo URL to install, build &amp; run automatically" Click="GitHubHubButton_Click" />
+                                    <Button x:Name="AiStudioButton" Style="{StaticResource GlassButton}" Content="✨  AI Studio" Margin="0,0,8,0"
+                                            Background="#33802090" BorderBrush="#B666FF" Foreground="#E2B3FF"
+                                            ToolTip="AI Code Refactoring, Theme Overhauls &amp; Assistant (Ctrl+Shift+A)" Click="AiStudioButton_Click" />
                                     <Button x:Name="DecompileButton" Style="{StaticResource GlassButton}" Content="⇲  Decompile" Margin="0,0,8,0"
                                             ToolTip="Decompile an .exe, .dll, .apk or .jar (or drop one onto the window)" Click="DecompileButton_Click" />
                                     <Button x:Name="InstallSkillButton" Style="{StaticResource GlassButton}" Content="🤖  Install Skill" Margin="0,0,8,0"
@@ -566,6 +569,256 @@
 
                                         <TextBlock Grid.Column="1" x:Name="GitHubModalStatusText" Text="Select a Trending repository or paste any GitHub URL above."
                                                    FontSize="10" Foreground="#889AB5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </Border>
+
+                    <!-- AI Studio Modal Drawer Overlay -->
+                    <Border x:Name="AiStudioOverlay" Grid.ColumnSpan="2" Background="#DD040811" Visibility="Collapsed"
+                            MouseLeftButtonDown="AiStudioOverlay_BackdropClick">
+                        <Border Width="1060" MaxHeight="780" Margin="24" CornerRadius="14" BorderBrush="#55B666FF" BorderThickness="1"
+                                Background="#F60A101C" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                MouseLeftButtonDown="AiStudioModalCard_MouseLeftButtonDown" ClipToBounds="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0: Modal Header -->
+                                <Border Grid.Row="0" Background="#C4131A2B" BorderBrush="#26FFFFFF" BorderThickness="0,0,0,1" Padding="20,13">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Border Width="30" Height="30" CornerRadius="8" Background="#33802090" BorderBrush="#B666FF" BorderThickness="1" Margin="0,0,12,0">
+                                                <TextBlock Text="✨" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel VerticalAlignment="Center">
+                                                <TextBlock Text="MyCompiler AI Studio" FontSize="15" FontWeight="Bold" Foreground="#F5F8FF" />
+                                                <TextBlock Text="Refactor open source code · Overhaul UI themes &amp; colors · Fix compiler errors · Fork &amp; advance repos"
+                                                           FontSize="10" Foreground="#A89AB8" Margin="0,2,0,0" />
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button x:Name="AiSettingsToggleButton" Style="{StaticResource GlassButton}"
+                                                    Content="⚙️ AI Settings" Padding="10,5" FontSize="10" Margin="0,0,8,0"
+                                                    Click="AiSettingsToggleButton_Click"
+                                                    ToolTip="Configure API URL, API Key &amp; Model (OpenAI, OpenRouter, Ollama, DeepSeek, Groq)" />
+                                            <Button Style="{StaticResource IconButton}" Content="✕" Width="32" Height="30"
+                                                    ToolTip="Close AI Studio (Esc)" Click="CloseAiStudioOverlay_Click" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Row 1: Quick Action Chips -->
+                                <Border Grid.Row="1" Background="#50070F1A" BorderBrush="#1AFFFFFF" BorderThickness="0,0,0,1" Padding="20,8">
+                                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="PROMPTS:" FontSize="9" FontWeight="Bold" Foreground="#8592A8" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                        <Button Style="{StaticResource GlassButton}" Content="⚡ Refactor Code" Padding="9,4" FontSize="10" Margin="0,2,5,2"
+                                                Background="#22802090" BorderBrush="#9A45D8"
+                                                ToolTip="Refactor open-source code for clean architecture, modern idioms, and performance"
+                                                Click="QuickAction_Refactor_Click" />
+                                        <Button Style="{StaticResource GlassButton}" Content="💙 Make Neon Blue" Padding="9,4" FontSize="10" Margin="0,2,5,2"
+                                                Background="#2000A8FF" BorderBrush="#00D2FF" Foreground="#7DEBFF"
+                                                ToolTip="Transform all orange/warm UI accents, borders &amp; highlights into glowing electric neon blue and cyan"
+                                                Click="QuickAction_NeonBlue_Click" />
+                                        <Button Style="{StaticResource GlassButton}" Content="🌙 Give Dark Mode" Padding="9,4" FontSize="10" Margin="0,2,5,2"
+                                                Background="#221C2B44" BorderBrush="#5070A0"
+                                                ToolTip="Convert this UI to sleek modern glassmorphism dark mode with deep navy/black backgrounds"
+                                                Click="QuickAction_DarkMode_Click" />
+                                        <Button Style="{StaticResource GlassButton}" Content="🔤 Modern Font" Padding="9,4" FontSize="10" Margin="0,2,5,2"
+                                                Background="#20104B80" BorderBrush="#358AC4"
+                                                ToolTip="Update typography to Cascadia Code / Segoe UI Variable / JetBrains Mono"
+                                                Click="QuickAction_Font_Click" />
+                                        <Button Style="{StaticResource GlassButton}" Content="🐛 Fix Build Error" Padding="9,4" FontSize="10" Margin="0,2,5,2"
+                                                Background="#258A2020" BorderBrush="#E05555" Foreground="#FFAAAA"
+                                                ToolTip="Automatically pulls the latest compile error from Output console and prompts AI to repair it"
+                                                Click="QuickAction_FixError_Click" />
+                                        <Button Style="{StaticResource GlassButton}" Content="📖 Explain Code" Padding="9,4" FontSize="10" Margin="0,2,5,2"
+                                                Background="#18FFFFFF" BorderBrush="#33FFFFFF"
+                                                ToolTip="Explain this file, algorithm, or decompiled module in plain English"
+                                                Click="QuickAction_Explain_Click" />
+                                        <Button Style="{StaticResource GlassButton}" Content="🔀 Git Fork &amp; Push" Padding="9,4" FontSize="10" Margin="0,2,5,2"
+                                                Background="#242E6B3E" BorderBrush="#4AE28D" Foreground="#6AF5A5"
+                                                ToolTip="Review Git status, generate conventional commit message, and push your fork to GitHub"
+                                                Click="QuickAction_GitFork_Click" />
+                                    </WrapPanel>
+                                </Border>
+
+                                <!-- Row 2: Two-column Main Workspace -->
+                                <Grid Grid.Row="2" Margin="18,12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="380" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <!-- Left Side: Context Card, Prompt Input, Settings Panel, Git Panel -->
+                                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,12,0">
+                                        <StackPanel>
+                                            <!-- Target File & Context Status Card -->
+                                            <Border CornerRadius="8" Background="#16FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="12,10" Margin="0,0,0,10">
+                                                <StackPanel>
+                                                    <Grid>
+                                                        <TextBlock Text="TARGET CONTEXT" FontSize="9" FontWeight="Bold" Foreground="#8592A8" />
+                                                        <TextBlock x:Name="AiContextScopeText" Text="Full file" HorizontalAlignment="Right" FontSize="9" Foreground="#66D9FF" />
+                                                    </Grid>
+                                                    <TextBlock x:Name="AiTargetFileText" Text="welcome.cs" FontSize="11" FontWeight="SemiBold" Foreground="#F0F4FC" Margin="0,4,0,2" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock x:Name="AiSelectionStatusText" Text="Entire file (no selection)" FontSize="9" Foreground="#7A8CA6" />
+                                                    <TextBlock x:Name="AiErrorStatusText" Text="Build output: Clean" FontSize="9" Foreground="#52627A" Margin="0,3,0,0" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Collapsible Settings Panel -->
+                                            <Border x:Name="AiSettingsPanel" CornerRadius="8" Background="#22111E32" BorderBrush="#40B666FF" BorderThickness="1"
+                                                    Padding="12,11" Margin="0,0,0,10" Visibility="Collapsed">
+                                                <StackPanel>
+                                                    <TextBlock Text="AI PROVIDER &amp; API CONFIGURATION" FontSize="9" FontWeight="Bold" Foreground="#C766FF" Margin="0,0,0,8" />
+
+                                                    <TextBlock Text="Provider Preset" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
+                                                    <ComboBox x:Name="AiProviderCombo" FontSize="10" Padding="6,4" Margin="0,0,0,7" SelectionChanged="AiProviderCombo_SelectionChanged" />
+
+                                                    <TextBlock Text="API Endpoint URL" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
+                                                    <TextBox x:Name="AiApiUrlBox" FontSize="10" Padding="6,4" Margin="0,0,0,7"
+                                                             ToolTip="OpenAI-compatible URL (e.g. https://api.openai.com/v1/chat/completions or http://localhost:11434/v1/chat/completions)" />
+
+                                                    <TextBlock Text="API Key" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
+                                                    <Grid Margin="0,0,0,7">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <PasswordBox x:Name="AiApiKeyBox" Grid.Column="0" FontSize="10" Padding="6,4" />
+                                                        <TextBox x:Name="AiApiKeyPlainBox" Grid.Column="0" FontSize="10" Padding="6,4" Visibility="Collapsed" />
+                                                        <Button x:Name="AiToggleKeyVisButton" Grid.Column="1" Style="{StaticResource GlassButton}" Content="👁"
+                                                                Padding="7,2" FontSize="10" Margin="4,0,0,0" Click="AiToggleKeyVisibility_Click" />
+                                                    </Grid>
+
+                                                    <TextBlock Text="Model Name" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
+                                                    <TextBox x:Name="AiModelBox" FontSize="10" Padding="6,4" Margin="0,0,0,9"
+                                                             ToolTip="Model ID (e.g. gpt-4o, claude-3.5-sonnet, deepseek-chat, qwen2.5-coder)" />
+
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button Grid.Column="0" Style="{StaticResource GlassButton}" Content="Ping Connection"
+                                                                Padding="8,4" FontSize="9" Margin="0,0,4,0" Click="AiTestPing_Click" />
+                                                        <Button Grid.Column="1" Style="{StaticResource PrimaryButton}" Content="Save Settings"
+                                                                Padding="8,4" FontSize="9" Margin="4,0,0,0" Click="AiSaveSettings_Click" />
+                                                    </Grid>
+                                                    <TextBlock x:Name="AiPingStatusText" Text="" FontSize="9" Foreground="#66D9FF" Margin="0,6,0,0" TextWrapping="Wrap" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Collapsible Git Fork & Commit Panel -->
+                                            <Border x:Name="AiGitForkPanel" CornerRadius="8" Background="#1D12261C" BorderBrush="#404AE28D" BorderThickness="1"
+                                                    Padding="12,11" Margin="0,0,0,10" Visibility="Collapsed">
+                                                <StackPanel>
+                                                    <TextBlock Text="GIT FORK &amp; COMMIT HELPER" FontSize="9" FontWeight="Bold" Foreground="#4AE28D" Margin="0,0,0,8" />
+                                                    <TextBlock x:Name="AiGitBranchText" Text="Branch: main" FontSize="10" Foreground="#D5F7E4" FontWeight="SemiBold" />
+                                                    <TextBlock x:Name="AiGitStatusText" Text="Scanning git workspace…" FontSize="9" Foreground="#85AB95" Margin="0,2,0,7" TextWrapping="Wrap" />
+
+                                                    <TextBlock Text="Commit message" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
+                                                    <Grid Margin="0,0,0,8">
+                                                        <TextBox x:Name="AiGitCommitMsgBox" FontSize="10" Padding="6,4" Text="refactor: modern code cleanup and theme overhaul" />
+                                                    </Grid>
+
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Button Grid.Column="0" Style="{StaticResource GlassButton}" Content="✨ AI Message"
+                                                                Padding="8,4" FontSize="9" Margin="0,0,5,0" Click="AiSuggestCommitMsg_Click" />
+                                                        <Button Grid.Column="1" Style="{StaticResource GlassButton}" Content="Commit &amp; Push"
+                                                                Background="#2E237E44" BorderBrush="#4AE28D" Foreground="#E0FFE9"
+                                                                Padding="8,4" FontSize="9" Click="AiGitCommitPush_Click" />
+                                                        <Button Grid.Column="2" Style="{StaticResource GlassButton}" Content="GitHub ↗"
+                                                                Padding="8,4" FontSize="9" Margin="5,0,0,0" Click="AiGitOpenBrowser_Click" />
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+
+                                            <!-- Prompt Input Card -->
+                                            <TextBlock Text="YOUR INSTRUCTION / PROMPT" FontSize="9" FontWeight="Bold" Foreground="#8592A8" Margin="0,0,0,5" />
+                                            <TextBox x:Name="AiPromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="110" FontSize="11" Padding="9,7"
+                                                     VerticalScrollBarVisibility="Auto" Margin="0,0,0,8" KeyDown="AiPromptBox_KeyDown"
+                                                     ToolTip="Enter your instruction. Press Ctrl+Enter to generate." />
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button x:Name="AiGenerateButton" Grid.Column="0" Style="{StaticResource PrimaryButton}"
+                                                        Content="▶  Generate &amp; Refactor" Padding="14,8" FontSize="11"
+                                                        Background="#3B802090" BorderBrush="#C766FF" Foreground="#FFFFFF"
+                                                        Click="AiGenerateButton_Click" />
+                                                <Button x:Name="AiStopButton" Grid.Column="1" Style="{StaticResource GlassButton}"
+                                                        Content="■ Stop" Padding="12,8" FontSize="11" Margin="6,0,0,0" IsEnabled="False"
+                                                        Click="AiStopButton_Click" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </ScrollViewer>
+
+                                    <!-- Right Side: AI Response Viewer and Code Actions -->
+                                    <Border Grid.Column="1" CornerRadius="10" Background="#12050B14" BorderBrush="#25FFFFFF" BorderThickness="1" ClipToBounds="True">
+                                        <Grid>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="38" />
+                                                <RowDefinition Height="*" />
+                                            </Grid.RowDefinitions>
+
+                                            <!-- Response Header Bar -->
+                                            <Border Grid.Row="0" Background="#90111A29" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1" Padding="12,0">
+                                                <Grid>
+                                                    <TextBlock Text="PROPOSED CODE &amp; EXPLANATION" FontSize="10" FontWeight="Bold" Foreground="#899AB5" VerticalAlignment="Center" />
+
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                                        <Button x:Name="AiUndoCodeButton" Style="{StaticResource GlassButton}" Content="↩ Undo Edit"
+                                                                Padding="8,3" FontSize="9" Margin="0,0,6,0" Visibility="Collapsed" Click="AiUndoCodeButton_Click"
+                                                                ToolTip="Revert back to the code before the AI edit was applied" />
+                                                        <Button x:Name="AiApplyCodeButton" Style="{StaticResource PrimaryButton}" Content="⚡ Apply to Code"
+                                                                Background="#3045E18D" BorderBrush="#45E18D" Foreground="#A2FFC8"
+                                                                Padding="10,4" FontSize="9" FontWeight="Bold" IsEnabled="False"
+                                                                Click="AiApplyCodeButton_Click" ToolTip="Replace active code (or selection) with the AI's generated code" />
+                                                        <Button x:Name="AiCopyCodeButton" Style="{StaticResource GlassButton}" Content="📋 Copy"
+                                                                Padding="8,4" FontSize="9" Margin="6,0,0,0" IsEnabled="False"
+                                                                Click="AiCopyCodeButton_Click" ToolTip="Copy extracted code to clipboard" />
+                                                        <Button x:Name="AiSaveNewFileButton" Style="{StaticResource GlassButton}" Content="💾 Save New File"
+                                                                Padding="8,4" FontSize="9" Margin="6,0,0,0" IsEnabled="False"
+                                                                Click="AiSaveNewFileButton_Click" ToolTip="Save this code as a new file in workspace" />
+                                                    </StackPanel>
+                                                </Grid>
+                                            </Border>
+
+                                            <!-- Response Text Viewer -->
+                                            <TextBox x:Name="AiResponseBox" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
+                                                     VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" BorderThickness="0"
+                                                     Background="#5002070D" Foreground="#D5E4F8"
+                                                     FontFamily="Cascadia Code, Cascadia Mono, Consolas" FontSize="11" Padding="14,10" />
+                                        </Grid>
+                                    </Border>
+                                </Grid>
+
+                                <!-- Row 3: Modal Footer Status -->
+                                <Border Grid.Row="3" Background="#B80C1422" BorderBrush="#20FFFFFF" BorderThickness="0,1,0,0" Padding="18,8">
+                                    <Grid>
+                                        <TextBlock x:Name="AiStatusText" Text="Ready. Click any quick prompt above or type your instruction."
+                                                   FontSize="10" Foreground="#8592A8" VerticalAlignment="Center" />
+                                        <TextBlock x:Name="AiModelInfoText" Text="OpenAI · gpt-4o"
+                                                   FontSize="9" Foreground="#66D9FF" HorizontalAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
                             </Grid>

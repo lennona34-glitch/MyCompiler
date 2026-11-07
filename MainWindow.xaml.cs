@@ -47,6 +47,7 @@ public partial class MainWindow : Window
         DataContext = this;
         LoadDownloadedHistory();
         LoadScratchDocument();
+        InitAiStudio();
         _ = Task.Run(CleanOldScratchFolders);
         SourceEditor.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler(SourceEditor_ScrollChanged));
         Loaded += async (_, _) =>
@@ -1140,9 +1141,21 @@ public partial class MainWindow : Window
             ToggleFullScreen();
             e.Handled = true;
         }
+        else if (e.Key == Key.Escape && AiStudioOverlay.Visibility == Visibility.Visible)
+        {
+            CloseAiStudioOverlay();
+            e.Handled = true;
+        }
         else if (e.Key == Key.Escape && GitHubOverlay.Visibility == Visibility.Visible)
         {
             GitHubOverlay.Visibility = Visibility.Collapsed;
+            e.Handled = true;
+        }
+        else if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control &&
+                 (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift &&
+                 e.Key == Key.A)
+        {
+            ToggleAiStudioOverlay();
             e.Handled = true;
         }
         else if (e.Key == Key.Escape && _operationCts is not null)
