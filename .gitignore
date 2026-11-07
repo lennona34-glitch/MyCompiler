@@ -9,3 +9,6 @@ src/
 *.exe
 MyCompiler-background.png
 Downloads/
+
+ai_settings.json
+

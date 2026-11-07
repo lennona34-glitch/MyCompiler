@@ -358,8 +358,8 @@
                     <!-- GitHub Hub Modal Drawer Overlay -->
                     <Border x:Name="GitHubOverlay" Grid.ColumnSpan="2" Background="#D8040811" Visibility="Collapsed"
                             MouseLeftButtonDown="GitHubOverlay_BackdropClick">
-                        <Border Width="980" MaxHeight="740" Margin="32" CornerRadius="14" BorderBrush="#4879B8FF" BorderThickness="1"
-                                Background="#F4091220" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        <Border x:Name="GitHubModalCard" MaxWidth="1420" MaxHeight="860" Margin="20" CornerRadius="14" BorderBrush="#4879B8FF" BorderThickness="1"
+                                Background="#F4091220" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                 MouseLeftButtonDown="GitHubModalCard_MouseLeftButtonDown" ClipToBounds="True">
                             <Grid>
                                 <Grid.RowDefinitions>
@@ -425,38 +425,75 @@
                                 </Border>
 
                                 <!-- Trending & Category Feed Filter Bar -->
-                                <Border Grid.Row="2" Padding="20,9" BorderBrush="#1AFFFFFF" BorderThickness="0,0,0,1">
+                                <Border Grid.Row="2" Padding="18,10" BorderBrush="#1AFFFFFF" BorderThickness="0,0,0,1">
                                     <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="Auto" />
-                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto" />
+                                            <RowDefinition Height="Auto" />
+                                        </Grid.RowDefinitions>
 
-                                        <WrapPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="FEED" FontSize="10" FontWeight="Bold" Foreground="#7CE8FF" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                            <Button x:Name="TrendDailyBtn" Style="{StaticResource GlassButton}" Content="Today" Padding="8,5" FontSize="10" Tag="daily" Click="TrendingSinceButton_Click" />
-                                            <Button x:Name="TrendWeeklyBtn" Style="{StaticResource GlassButton}" Content="Week" Padding="8,5" FontSize="10" Margin="4,0,0,0" Tag="weekly" Click="TrendingSinceButton_Click" />
-                                            <Button x:Name="TrendMonthlyBtn" Style="{StaticResource GlassButton}" Content="Month" Padding="8,5" FontSize="10" Margin="4,0,0,0" Tag="monthly" Click="TrendingSinceButton_Click" />
-                                            <Button x:Name="WindowsAppsBtn" Style="{StaticResource GlassButton}" Content="★ Windows Apps" Padding="9,5" FontSize="10" Margin="5,0,0,0"
-                                                    Background="#261B8A5A" BorderBrush="#45E18D"
-                                                    ToolTip="Show runnable Windows desktop apps, tools &amp; games on GitHub"
-                                                    Click="WindowsAppsFeedButton_Click" />
-                                            <Button x:Name="RecompPortsBtn" Style="{StaticResource GlassButton}" Content="⚡ Recomp" Padding="9,5" FontSize="10" Margin="5,0,0,0"
-                                                    Background="#2B6B22A8" BorderBrush="#B666FF"
-                                                    ToolTip="Show Static Recompilation game ports (N64Recomp, Zelda64Recomp, Majora's Mask, PS2Recomp, XenonRecomp, B2recomp, etc.)"
-                                                    Click="RecompFeedButton_Click" />
-                                            <Button x:Name="DecompProjectsBtn" Style="{StaticResource GlassButton}" Content="🎮 Decomp" Padding="9,5" FontSize="10" Margin="5,0,0,0"
-                                                    Background="#2EC85A17" BorderBrush="#FF9248"
-                                                    ToolTip="Show Game Decompilations &amp; Reverse-Engineered Source Ports (SM64, Pokeemerald, Sonic, Ship of Harkinian, OpenGOAL, etc.)"
-                                                    Click="DecompFeedButton_Click" />
-                                            <Button x:Name="AntigravityMcpBtn" Style="{StaticResource GlassButton}" Content="🤖 Antigravity / MCP" Padding="9,5" FontSize="10" Margin="5,0,0,0"
-                                                    Background="#2E0E8A7A" BorderBrush="#3CE8D0"
-                                                    ToolTip="Show Antigravity skills, plugins &amp; MCP servers"
-                                                    Click="AntigravityMcpFeedButton_Click" />
+                                        <!-- Row 0: Feeds (Left) + Hide Downloaded Toggle & Search (Right) -->
+                                        <Grid Grid.Row="0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
 
-                                            <Border Width="1" Height="14" Background="#26FFFFFF" Margin="10,0,10,0" VerticalAlignment="Center" />
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="FEED" FontSize="10" FontWeight="Bold" Foreground="#7CE8FF" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                                <Button x:Name="TrendDailyBtn" Style="{StaticResource GlassButton}" Content="Today" Padding="8,5" FontSize="10" Tag="daily" Click="TrendingSinceButton_Click" />
+                                                <Button x:Name="TrendWeeklyBtn" Style="{StaticResource GlassButton}" Content="Week" Padding="8,5" FontSize="10" Margin="4,0,0,0" Tag="weekly" Click="TrendingSinceButton_Click" />
+                                                <Button x:Name="TrendMonthlyBtn" Style="{StaticResource GlassButton}" Content="Month" Padding="8,5" FontSize="10" Margin="4,0,0,0" Tag="monthly" Click="TrendingSinceButton_Click" />
+                                                <Button x:Name="WindowsAppsBtn" Style="{StaticResource GlassButton}" Content="★ Windows Apps" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                                        Background="#261B8A5A" BorderBrush="#45E18D"
+                                                        ToolTip="Show runnable Windows desktop apps, tools &amp; games on GitHub"
+                                                        Click="WindowsAppsFeedButton_Click" />
+                                                <Button x:Name="RecompPortsBtn" Style="{StaticResource GlassButton}" Content="⚡ Recomp" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                                        Background="#2B6B22A8" BorderBrush="#B666FF"
+                                                        ToolTip="Show Static Recompilation game ports (N64Recomp, Zelda64Recomp, Majora's Mask, PS2Recomp, XenonRecomp, B2recomp, etc.)"
+                                                        Click="RecompFeedButton_Click" />
+                                                <Button x:Name="DecompProjectsBtn" Style="{StaticResource GlassButton}" Content="🎮 Decomp" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                                        Background="#2EC85A17" BorderBrush="#FF9248"
+                                                        ToolTip="Show Game Decompilations &amp; Reverse-Engineered Source Ports (SM64, Pokeemerald, Sonic, Ship of Harkinian, OpenGOAL, etc.)"
+                                                        Click="DecompFeedButton_Click" />
+                                                <Button x:Name="AntigravityMcpBtn" Style="{StaticResource GlassButton}" Content="🤖 Antigravity / MCP" Padding="9,5" FontSize="10" Margin="5,0,0,0"
+                                                        Background="#2E0E8A7A" BorderBrush="#3CE8D0"
+                                                        ToolTip="Show Antigravity skills, plugins &amp; MCP servers"
+                                                        Click="AntigravityMcpFeedButton_Click" />
+                                            </StackPanel>
 
-                                            <TextBlock Text="Lang:" FontSize="10" Foreground="#7A8AA6" VerticalAlignment="Center" Margin="0,0,5,0" />
+                                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+                                                <Button x:Name="HideDownloadedButton" Style="{StaticResource GlassButton}"
+                                                        Content="🙈 Hidden" Padding="10,5" FontSize="10" FontWeight="SemiBold"
+                                                        Foreground="#4AE28D" Background="#33104B80" BorderBrush="#45E18D"
+                                                        Click="HideDownloadedButton_Click"
+                                                        ToolTip="Toggle hiding repositories that have already been downloaded to keep results fresh" />
+                                                <Grid Width="170" Margin="8,0,0,0">
+                                                    <TextBox x:Name="GitHubSearchBox" FontSize="11" Padding="8,5"
+                                                             ToolTip="Search GitHub repositories by topic or keyword (press Enter)"
+                                                             KeyDown="GitHubSearchBox_KeyDown" />
+                                                    <TextBlock Text="Filter / search…" Foreground="#52627C" FontSize="10"
+                                                               Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock">
+                                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                                <Style.Triggers>
+                                                                    <DataTrigger Binding="{Binding Text, ElementName=GitHubSearchBox}" Value="">
+                                                                        <Setter Property="Visibility" Value="Visible" />
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Grid>
+                                                <Button Style="{StaticResource GlassButton}" Content="Search" Padding="10,5" FontSize="10" Margin="5,0,0,0"
+                                                        Click="GitHubSearchButton_Click" />
+                                            </StackPanel>
+                                        </Grid>
+
+                                        <!-- Row 1: Language Filter Pills -->
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,8,0,0">
+                                            <TextBlock Text="LANG:" FontSize="10" FontWeight="Bold" Foreground="#7A8AA6" VerticalAlignment="Center" Margin="0,0,8,0" />
                                             <Button Style="{StaticResource GlassButton}" Content="All" Padding="7,4" FontSize="10" Tag="all" Click="TrendingLangButton_Click" />
                                             <Button Style="{StaticResource GlassButton}" Content="C#" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="c#" Click="TrendingLangButton_Click" />
                                             <Button Style="{StaticResource GlassButton}" Content="Python" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="python" Click="TrendingLangButton_Click" />
@@ -464,34 +501,6 @@
                                             <Button Style="{StaticResource GlassButton}" Content="Go" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="go" Click="TrendingLangButton_Click" />
                                             <Button Style="{StaticResource GlassButton}" Content="C++" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="c++" Click="TrendingLangButton_Click" />
                                             <Button Style="{StaticResource GlassButton}" Content="TS/JS" Padding="7,4" FontSize="10" Margin="3,0,0,0" Tag="typescript" Click="TrendingLangButton_Click" />
-                                        </WrapPanel>
-
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="10,0,0,0">
-                                            <Button x:Name="HideDownloadedButton" Style="{StaticResource GlassButton}"
-                                                    Content="🙈 Hidden" Padding="10,5" FontSize="10" FontWeight="SemiBold"
-                                                    Foreground="#4AE28D" Background="#33104B80" BorderBrush="#45E18D"
-                                                    Click="HideDownloadedButton_Click"
-                                                    ToolTip="Toggle hiding repositories that have already been downloaded to keep results fresh" />
-                                            <Grid Width="160" Margin="8,0,0,0">
-                                                <TextBox x:Name="GitHubSearchBox" FontSize="11" Padding="8,5"
-                                                         ToolTip="Search GitHub repositories by topic or keyword (press Enter)"
-                                                         KeyDown="GitHubSearchBox_KeyDown" />
-                                                <TextBlock Text="Filter / search…" Foreground="#52627C" FontSize="10"
-                                                           Margin="10,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
-                                                    <TextBlock.Style>
-                                                        <Style TargetType="TextBlock">
-                                                            <Setter Property="Visibility" Value="Collapsed" />
-                                                            <Style.Triggers>
-                                                                <DataTrigger Binding="{Binding Text, ElementName=GitHubSearchBox}" Value="">
-                                                                    <Setter Property="Visibility" Value="Visible" />
-                                                                </DataTrigger>
-                                                            </Style.Triggers>
-                                                        </Style>
-                                                    </TextBlock.Style>
-                                                </TextBlock>
-                                            </Grid>
-                                            <Button Style="{StaticResource GlassButton}" Content="Search" Padding="10,5" FontSize="10" Margin="5,0,0,0"
-                                                    Click="GitHubSearchButton_Click" />
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -578,8 +587,8 @@
                     <!-- AI Studio Modal Drawer Overlay -->
                     <Border x:Name="AiStudioOverlay" Grid.ColumnSpan="2" Background="#DD040811" Visibility="Collapsed"
                             MouseLeftButtonDown="AiStudioOverlay_BackdropClick">
-                        <Border Width="1060" MaxHeight="780" Margin="24" CornerRadius="14" BorderBrush="#55B666FF" BorderThickness="1"
-                                Background="#F60A101C" HorizontalAlignment="Center" VerticalAlignment="Center"
+                        <Border x:Name="AiStudioModalCard" MaxWidth="1680" MaxHeight="980" Margin="20" CornerRadius="14" BorderBrush="#55B666FF" BorderThickness="1"
+                                Background="#F60A101C" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                                 MouseLeftButtonDown="AiStudioModalCard_MouseLeftButtonDown" ClipToBounds="True">
                             <Grid>
                                 <Grid.RowDefinitions>
@@ -612,7 +621,9 @@
                                             <Button x:Name="AiSettingsToggleButton" Style="{StaticResource GlassButton}"
                                                     Content="⚙️ AI Settings" Padding="10,5" FontSize="10" Margin="0,0,8,0"
                                                     Click="AiSettingsToggleButton_Click"
-                                                    ToolTip="Configure API URL, API Key &amp; Model (OpenAI, OpenRouter, Ollama, DeepSeek, Groq)" />
+                                                    ToolTip="Configure API URL, API Key &amp; Model (Google Gemini, OpenAI, OpenRouter, Ollama, DeepSeek, Groq)" />
+                                            <Button x:Name="AiStudioMaximizeButton" Style="{StaticResource IconButton}" Content="⛶" Width="32" Height="30" Margin="0,0,6,0"
+                                                    ToolTip="Maximize AI Studio to full window (or restore)" Click="AiStudioMaximizeButton_Click" />
                                             <Button Style="{StaticResource IconButton}" Content="✕" Width="32" Height="30"
                                                     ToolTip="Close AI Studio (Esc)" Click="CloseAiStudioOverlay_Click" />
                                         </StackPanel>
@@ -654,15 +665,16 @@
                                     </WrapPanel>
                                 </Border>
 
-                                <!-- Row 2: Two-column Main Workspace -->
+                                <!-- Row 2: Two-column Main Workspace with Resizable Splitter -->
                                 <Grid Grid.Row="2" Margin="18,12">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="380" />
-                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="420" MinWidth="320" MaxWidth="700" />
+                                        <ColumnDefinition Width="8" />
+                                        <ColumnDefinition Width="*" MinWidth="400" />
                                     </Grid.ColumnDefinitions>
 
                                     <!-- Left Side: Context Card, Prompt Input, Settings Panel, Git Panel -->
-                                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,12,0">
+                                    <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto" Margin="0,0,8,0">
                                         <StackPanel>
                                             <!-- Target File & Context Status Card -->
                                             <Border CornerRadius="8" Background="#16FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1" Padding="12,10" Margin="0,0,0,10">
@@ -713,8 +725,9 @@
                                                                ToolTip="Click to automatically use this detected API key" />
 
                                                     <TextBlock Text="Model Name" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
-                                                    <TextBox x:Name="AiModelBox" FontSize="10" Padding="6,4" Margin="0,0,0,9"
-                                                             ToolTip="Model ID (e.g. gpt-4o, claude-3.5-sonnet, deepseek-chat, qwen2.5-coder)" />
+                                                    <TextBox x:Name="AiModelBox" FontSize="10" Padding="6,4" Margin="0,0,0,4"
+                                                             ToolTip="Model ID (e.g. gemini-3.8-flash, gemini-3.8-pro, gpt-4o, deepseek-chat)" />
+                                                    <WrapPanel x:Name="AiModelSuggestionsPanel" Margin="0,0,0,9" Orientation="Horizontal" />
 
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
@@ -762,7 +775,7 @@
 
                                             <!-- Prompt Input Card -->
                                             <TextBlock Text="YOUR INSTRUCTION / PROMPT" FontSize="9" FontWeight="Bold" Foreground="#8592A8" Margin="0,0,0,5" />
-                                            <TextBox x:Name="AiPromptBox" AcceptsReturn="True" TextWrapping="Wrap" Height="110" FontSize="11" Padding="9,7"
+                                            <TextBox x:Name="AiPromptBox" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="130" Height="150" FontSize="11" Padding="9,7"
                                                      VerticalScrollBarVisibility="Auto" Margin="0,0,0,8" KeyDown="AiPromptBox_KeyDown"
                                                      ToolTip="Enter your instruction. Press Ctrl+Enter to generate." />
 
@@ -782,8 +795,12 @@
                                         </StackPanel>
                                     </ScrollViewer>
 
+                                    <!-- Draggable Splitter -->
+                                    <GridSplitter Grid.Column="1" Width="8" HorizontalAlignment="Center" VerticalAlignment="Stretch"
+                                                  Background="#20FFFFFF" Cursor="SizeWE" />
+
                                     <!-- Right Side: AI Response Viewer and Code Actions -->
-                                    <Border Grid.Column="1" CornerRadius="10" Background="#12050B14" BorderBrush="#25FFFFFF" BorderThickness="1" ClipToBounds="True">
+                                    <Border Grid.Column="2" CornerRadius="10" Background="#12050B14" BorderBrush="#25FFFFFF" BorderThickness="1" ClipToBounds="True">
                                         <Grid>
                                             <Grid.RowDefinitions>
                                                 <RowDefinition Height="38" />
@@ -817,7 +834,7 @@
                                             <TextBox x:Name="AiResponseBox" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
                                                      VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Auto" BorderThickness="0"
                                                      Background="#5002070D" Foreground="#D5E4F8"
-                                                     FontFamily="Cascadia Code, Cascadia Mono, Consolas" FontSize="11" Padding="14,10" />
+                                                     FontFamily="Cascadia Code, Cascadia Mono, Consolas" FontSize="12" Padding="14,10" />
                                         </Grid>
                                     </Border>
                                 </Grid>

@@ -33,6 +33,9 @@ public partial class MainWindow
             AiApiKeyPlainBox.Text = _aiSettings.ApiKey;
             AiModelBox.Text = _aiSettings.Model;
 
+            var currentPreset = presetIndex >= 0 ? AiSettings.Presets[presetIndex] : AiSettings.Presets[0];
+            UpdatePresetKeyUi(currentPreset);
+
             UpdateAiModelBadge();
         }
         catch { }
@@ -175,6 +178,66 @@ public partial class MainWindow
             else
             {
                 AiEnvDetectedText.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        if (AiModelSuggestionsPanel is not null)
+        {
+            AiModelSuggestionsPanel.Children.Clear();
+            if (preset.SuggestedModels is { Count: > 0 })
+            {
+                foreach (var modelName in preset.SuggestedModels)
+                {
+                    var btn = new Button
+                    {
+                        Content = modelName,
+                        Style = (Style)FindResource("GlassButton"),
+                        Padding = new Thickness(6, 2, 6, 2),
+                        FontSize = 9,
+                        Margin = new Thickness(0, 0, 4, 3),
+                        Tag = modelName,
+                        ToolTip = $"Click to set model to {modelName}"
+                    };
+                    btn.Click += (s, _) =>
+                    {
+                        if (s is Button b && b.Tag is string m)
+                        {
+                            AiModelBox.Text = m;
+                        }
+                    };
+                    AiModelSuggestionsPanel.Children.Add(btn);
+                }
+            }
+        }
+    }
+
+    private bool _isAiStudioMaximized = false;
+
+    private void AiStudioMaximizeButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isAiStudioMaximized = !_isAiStudioMaximized;
+        if (_isAiStudioMaximized)
+        {
+            AiStudioModalCard.Margin = new Thickness(0);
+            AiStudioModalCard.CornerRadius = new CornerRadius(0);
+            AiStudioModalCard.MaxWidth = double.PositiveInfinity;
+            AiStudioModalCard.MaxHeight = double.PositiveInfinity;
+            if (AiStudioMaximizeButton is not null)
+            {
+                AiStudioMaximizeButton.Content = "🗗";
+                AiStudioMaximizeButton.ToolTip = "Restore AI Studio size";
+            }
+        }
+        else
+        {
+            AiStudioModalCard.Margin = new Thickness(20);
+            AiStudioModalCard.CornerRadius = new CornerRadius(14);
+            AiStudioModalCard.MaxWidth = 1680;
+            AiStudioModalCard.MaxHeight = 980;
+            if (AiStudioMaximizeButton is not null)
+            {
+                AiStudioMaximizeButton.Content = "⛶";
+                AiStudioMaximizeButton.ToolTip = "Maximize AI Studio to full window";
             }
         }
     }
@@ -425,7 +488,9 @@ public partial class MainWindow
             AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF7070"));
 
             if (ex.Message.Contains("401", StringComparison.OrdinalIgnoreCase) ||
-                ex.Message.Contains("API Key", StringComparison.OrdinalIgnoreCase))
+                ex.Message.Contains("404", StringComparison.OrdinalIgnoreCase) ||
+                ex.Message.Contains("API Key", StringComparison.OrdinalIgnoreCase) ||
+                ex.Message.Contains("not found", StringComparison.OrdinalIgnoreCase))
             {
                 AiSettingsPanel.Visibility = Visibility.Visible;
             }

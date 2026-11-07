@@ -320,19 +320,64 @@ public sealed partial class AiService
 
     private static string? TryExtractErrorMessage(string jsonBody)
     {
+        if (string.IsNullOrWhiteSpace(jsonBody)) return null;
+
         try
         {
             using var doc = JsonDocument.Parse(jsonBody);
-            if (doc.RootElement.TryGetProperty("error", out var errorObj))
+
+            // Case 1: Array of objects (Google Generative Language API format: [{ "error": { "message": "..." } }])
+            if (doc.RootElement.ValueKind == JsonValueKind.Array && doc.RootElement.GetArrayLength() > 0)
+            {
+                var first = doc.RootElement[0];
+                if (first.TryGetProperty("error", out var arrErr))
+                {
+                    if (arrErr.ValueKind == JsonValueKind.String)
+                        return arrErr.GetString();
+                    if (arrErr.TryGetProperty("message", out var msgElem))
+                    {
+                        var msg = msgElem.GetString();
+                        if (!string.IsNullOrWhiteSpace(msg))
+                            return FormatFriendlyError(msg);
+                    }
+                }
+            }
+
+            // Case 2: Standard OpenAI error object ({ "error": { "message": "..." } } or { "error": "..." })
+            if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("error", out var errorObj))
             {
                 if (errorObj.ValueKind == JsonValueKind.String)
                     return errorObj.GetString();
                 if (errorObj.TryGetProperty("message", out var msgElem))
-                    return msgElem.GetString();
+                {
+                    var msg = msgElem.GetString();
+                    if (!string.IsNullOrWhiteSpace(msg))
+                        return FormatFriendlyError(msg);
+                }
+            }
+
+            // Case 3: Root "message" property ({ "message": "..." })
+            if (doc.RootElement.ValueKind == JsonValueKind.Object && doc.RootElement.TryGetProperty("message", out var rootMsg))
+            {
+                var msg = rootMsg.GetString();
+                if (!string.IsNullOrWhiteSpace(msg))
+                    return FormatFriendlyError(msg);
             }
         }
         catch { }
 
         return null;
+    }
+
+    private static string FormatFriendlyError(string message)
+    {
+        if (message.Contains("not found", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("not supported for generateContent", StringComparison.OrdinalIgnoreCase) ||
+            message.Contains("no longer available", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"{message}\n\n💡 Tip: For Google Gemini, please use active model 'gemini-3.8-flash' (Fast) or 'gemini-3.8-pro' (Deep).";
+        }
+
+        return message;
     }
 }
