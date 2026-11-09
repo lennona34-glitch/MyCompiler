@@ -41,8 +41,9 @@ Once you click **"⚡ Apply to Code"**, the AI's proposed solution is immediatel
 
 ---
 
-### 2. 🌐 GitHub Instant Fetch, Build & Run
+### 2. 🌐 GitHub Instant Fetch, Build & Run with Multi-Page Pagination
 - **Zero Command-Line Repo Exploration**: Paste any GitHub repository URL (`github.com/owner/repo`), file blob (`/blob/main/program.cs`), or Gist to instantly download, categorize, build, and run.
+- **Deep Multi-Page Pagination**: Browse beyond the first page! With top navigation (`◀ Prev` / `Next Page ▶`), direct page indicators, and the card-flow `⯆ Load Page X ▶` trigger, you can browse through pages of search results, trending feeds, and category channels.
 - **Trending & Search Feeds**:
   - Filter by `Today`, `Week`, `Month`.
   - Explore curated channels: **`★ Windows Apps`**, **`⚡ Recomp`** & **`🎮 Decomp`** game ports, and **`🤖 Antigravity / MCP`** skills & tools.
@@ -51,13 +52,26 @@ Once you click **"⚡ Apply to Code"**, the AI's proposed solution is immediatel
 
 ---
 
-### 3. 🤖 Antigravity Agent Skills Auto-Detection & Installer
+### 3. 📁 Recall-able Saved Projects Shelf
+Never lose track of enhanced open-source code or multi-hour experiments:
+- **Permanent Workspace Storage**: Save any workspace directly to your dedicated projects repository (`X:\MyCompiler\Projects`) with custom names, tags, notes, and auto-detected toolchain badges.
+- **Fast Recall Modal**: Access your project collection anytime by clicking **`📁 Projects`** in the top bar or sidebar.
+- **Instant Actions per Card**:
+  - **`Open`**: Instantly switches your active workspace and editor to the saved project.
+  - **`▶ Run`**: Builds and runs the saved project in 1 click.
+  - **`📁 Explorer`**: Reveals the project directory in Windows File Explorer.
+  - **`Remove`**: Unlinks the project from the catalog while giving you full control over local files.
+- **Dual Catalog Persistence**: Catalog metadata is persisted to `X:\MyCompiler\projects.json` with a fail-safe backup in `%LOCALAPPDATA%\MyCompiler\projects.json`.
+
+---
+
+### 4. 🤖 Antigravity Agent Skills Auto-Detection & Installer
 - Automatically scans repositories for `SKILL.md` or `skills.md` files.
 - Built-in terminal command: type `install` in the bottom custom command bar to automatically register the discovered skills into your global agent environment (`~/.gemini/config/skills/`).
 
 ---
 
-### 4. ⇲ Multi-Engine Decompiler Suite
+### 5. ⇲ Multi-Engine Decompiler Suite
 Recover readable source code from existing binaries with built-in decompiler bridges:
 
 | Binary Type | Engine | Output Produced |
@@ -71,7 +85,7 @@ Recover readable source code from existing binaries with built-in decompiler bri
 
 ---
 
-### 5. 🏛️ New Visual Identity: White Marble on Obsidian Black
+### 6. 🏛️ New Visual Identity: White Marble on Obsidian Black
 MyCompiler features a brand new sculptural app icon: an **"M" crafted from Italian white Carrara marble** with organic slate veins, chiseled bevels, specular lighting, and a soft ambient drop shadow resting on a sleek obsidian black pedestal.
 
 ---

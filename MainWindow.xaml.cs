@@ -48,6 +48,7 @@ public partial class MainWindow : Window
         LoadDownloadedHistory();
         LoadScratchDocument();
         InitAiStudio();
+        InitializeProjectsModule();
         _ = Task.Run(CleanOldScratchFolders);
         SourceEditor.AddHandler(ScrollViewer.ScrollChangedEvent, new ScrollChangedEventHandler(SourceEditor_ScrollChanged));
         Loaded += async (_, _) =>
@@ -139,6 +140,7 @@ public partial class MainWindow : Window
         }
 
         AppStatusText.Text = "Workspace ready";
+        ProjectService.RecordWorkspace(_workspaceRoot);
     }
 
     private List<SourceFileItem> IndexWorkspace(string root)
@@ -1290,16 +1292,60 @@ public partial class MainWindow : Window
     private void UpdateFeedStatusText(string feedName)
     {
         var hiddenCount = _allLoadedRepos.Count(r => r.IsDownloaded);
+        var pageSuffix = _currentGitHubPage > 1 ? $" • Page {_currentGitHubPage}" : "";
         if (_hideDownloaded && hiddenCount > 0)
         {
             GitHubModalStatusText.Text = TrendingRepos.Count > 0
-                ? $"Showing {TrendingRepos.Count} fresh {feedName} ({hiddenCount} downloaded hidden)."
-                : $"All {hiddenCount} {feedName} are already downloaded! Click '🙈 Hidden' to view them.";
+                ? $"Showing {TrendingRepos.Count} fresh {feedName}{pageSuffix} ({hiddenCount} downloaded hidden)."
+                : $"All {hiddenCount} {feedName} on this page are already downloaded! Click '🙈 Hidden' to view them.";
         }
         else
         {
-            GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} {feedName} ({_trendingLanguage}).";
+            GitHubModalStatusText.Text = $"Showing {TrendingRepos.Count} {feedName}{pageSuffix} ({_trendingLanguage}).";
         }
+    }
+
+    private int _currentGitHubPage = 1;
+    private string? _activeSearchQuery = null;
+
+    private void UpdatePaginationUi()
+    {
+        if (GitHubPageIndicatorText is not null)
+            GitHubPageIndicatorText.Text = $"Page {_currentGitHubPage}";
+
+        if (GitHubPrevPageButton is not null)
+            GitHubPrevPageButton.IsEnabled = _currentGitHubPage > 1;
+
+        if (GitHubBottomNextPageButton is not null)
+            GitHubBottomNextPageButton.Content = $"⯆  Load Page {_currentGitHubPage + 1} ▶";
+    }
+
+    private async void GitHubNextPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        _currentGitHubPage++;
+        UpdatePaginationUi();
+        await RefreshCurrentPageAsync();
+        GitHubReposScrollViewer?.ScrollToTop();
+    }
+
+    private async void GitHubPrevPageButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_currentGitHubPage > 1)
+        {
+            _currentGitHubPage--;
+            UpdatePaginationUi();
+            await RefreshCurrentPageAsync();
+            GitHubReposScrollViewer?.ScrollToTop();
+        }
+    }
+
+    private Task RefreshCurrentPageAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(_activeSearchQuery))
+        {
+            return SearchGitHubReposAsync(_activeSearchQuery, _currentGitHubPage);
+        }
+        return RefreshCurrentGitHubFeedAsync(_currentGitHubPage);
     }
 
     private async void TrendingSinceButton_Click(object sender, RoutedEventArgs e)
@@ -1307,56 +1353,82 @@ public partial class MainWindow : Window
         if (sender is not Button { Tag: string since }) return;
         _feedMode = GitHubFeedMode.Trending;
         _trendingSince = since;
-        await RefreshCurrentGitHubFeedAsync();
+        _currentGitHubPage = 1;
+        _activeSearchQuery = null;
+        UpdatePaginationUi();
+        await RefreshCurrentGitHubFeedAsync(1);
     }
 
     private async void WindowsAppsFeedButton_Click(object sender, RoutedEventArgs e)
     {
         _feedMode = GitHubFeedMode.WindowsApps;
-        await RefreshCurrentGitHubFeedAsync();
+        _currentGitHubPage = 1;
+        _activeSearchQuery = null;
+        UpdatePaginationUi();
+        await RefreshCurrentGitHubFeedAsync(1);
     }
 
     private async void RecompFeedButton_Click(object sender, RoutedEventArgs e)
     {
         _feedMode = GitHubFeedMode.Recomp;
-        await RefreshCurrentGitHubFeedAsync();
+        _currentGitHubPage = 1;
+        _activeSearchQuery = null;
+        UpdatePaginationUi();
+        await RefreshCurrentGitHubFeedAsync(1);
     }
 
     private async void DecompFeedButton_Click(object sender, RoutedEventArgs e)
     {
         _feedMode = GitHubFeedMode.Decomp;
-        await RefreshCurrentGitHubFeedAsync();
+        _currentGitHubPage = 1;
+        _activeSearchQuery = null;
+        UpdatePaginationUi();
+        await RefreshCurrentGitHubFeedAsync(1);
     }
 
     private async void AntigravityMcpFeedButton_Click(object sender, RoutedEventArgs e)
     {
         _feedMode = GitHubFeedMode.AntigravityMcp;
-        await RefreshCurrentGitHubFeedAsync();
+        _currentGitHubPage = 1;
+        _activeSearchQuery = null;
+        UpdatePaginationUi();
+        await RefreshCurrentGitHubFeedAsync(1);
     }
 
     private async void TrendingLangButton_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not Button { Tag: string lang }) return;
         _trendingLanguage = lang;
-        await RefreshCurrentGitHubFeedAsync();
+        _currentGitHubPage = 1;
+        _activeSearchQuery = null;
+        UpdatePaginationUi();
+        await RefreshCurrentGitHubFeedAsync(1);
     }
 
-    private Task RefreshCurrentGitHubFeedAsync() => _feedMode switch
+    private Task RefreshCurrentGitHubFeedAsync(int page = 1) => _feedMode switch
     {
-        GitHubFeedMode.WindowsApps => RefreshWindowsAppsFeedAsync(),
-        GitHubFeedMode.Recomp => RefreshRecompFeedAsync(),
-        GitHubFeedMode.Decomp => RefreshDecompFeedAsync(),
-        GitHubFeedMode.AntigravityMcp => RefreshAntigravityMcpFeedAsync(),
-        _ => RefreshTrendingAsync()
+        GitHubFeedMode.WindowsApps => RefreshWindowsAppsFeedAsync(page),
+        GitHubFeedMode.Recomp => RefreshRecompFeedAsync(page),
+        GitHubFeedMode.Decomp => RefreshDecompFeedAsync(page),
+        GitHubFeedMode.AntigravityMcp => RefreshAntigravityMcpFeedAsync(page),
+        _ => RefreshTrendingAsync(page)
     };
 
-    private async void GitHubSearchButton_Click(object sender, RoutedEventArgs e) =>
+    private async void GitHubSearchButton_Click(object sender, RoutedEventArgs e)
+    {
+        _currentGitHubPage = 1;
+        _activeSearchQuery = GitHubSearchBox.Text.Trim();
+        UpdatePaginationUi();
         await SearchGitHubReposAsync();
+    }
 
     private async void GitHubSearchBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter)
         {
+            _currentGitHubPage = 1;
+            _activeSearchQuery = GitHubSearchBox.Text.Trim();
+            UpdatePaginationUi();
             await SearchGitHubReposAsync();
             e.Handled = true;
         }
@@ -1567,16 +1639,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshWindowsAppsFeedAsync()
+    private async Task RefreshWindowsAppsFeedAsync(int page = 1)
     {
         _trendingCts?.Cancel();
         _trendingCts = new CancellationTokenSource();
         var token = _trendingCts.Token;
 
-        GitHubModalStatusText.Text = $"Loading runnable Windows desktop apps & tools ({_trendingLanguage})…";
+        var pageSuffix = page > 1 ? $" (Page {page})" : "";
+        GitHubModalStatusText.Text = $"Loading runnable Windows desktop apps & tools ({_trendingLanguage}){pageSuffix}…";
         try
         {
-            var items = await _github.GetWindowsAppsFeedAsync(_trendingLanguage, token);
+            var items = await _github.GetWindowsAppsFeedAsync(_trendingLanguage, token, page);
             if (token.IsCancellationRequested) return;
             SetLoadedRepos(items);
             UpdateFeedStatusText("runnable Windows apps & tools");
@@ -1588,16 +1661,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshRecompFeedAsync()
+    private async Task RefreshRecompFeedAsync(int page = 1)
     {
         _trendingCts?.Cancel();
         _trendingCts = new CancellationTokenSource();
         var token = _trendingCts.Token;
 
-        GitHubModalStatusText.Text = $"Loading Static Recompilation game ports ({_trendingLanguage})…";
+        var pageSuffix = page > 1 ? $" (Page {page})" : "";
+        GitHubModalStatusText.Text = $"Loading Static Recompilation game ports ({_trendingLanguage}){pageSuffix}…";
         try
         {
-            var items = await _github.GetRecompFeedAsync(_trendingLanguage, token);
+            var items = await _github.GetRecompFeedAsync(_trendingLanguage, token, page);
             if (token.IsCancellationRequested) return;
             SetLoadedRepos(items);
             UpdateFeedStatusText("Static Recompilation game ports");
@@ -1609,16 +1683,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshDecompFeedAsync()
+    private async Task RefreshDecompFeedAsync(int page = 1)
     {
         _trendingCts?.Cancel();
         _trendingCts = new CancellationTokenSource();
         var token = _trendingCts.Token;
 
-        GitHubModalStatusText.Text = $"Loading Decompilation game projects ({_trendingLanguage})…";
+        var pageSuffix = page > 1 ? $" (Page {page})" : "";
+        GitHubModalStatusText.Text = $"Loading Decompilation game projects ({_trendingLanguage}){pageSuffix}…";
         try
         {
-            var items = await _github.GetDecompFeedAsync(_trendingLanguage, token);
+            var items = await _github.GetDecompFeedAsync(_trendingLanguage, token, page);
             if (token.IsCancellationRequested) return;
             SetLoadedRepos(items);
             UpdateFeedStatusText("Decompilation game projects");
@@ -1630,16 +1705,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshAntigravityMcpFeedAsync()
+    private async Task RefreshAntigravityMcpFeedAsync(int page = 1)
     {
         _trendingCts?.Cancel();
         _trendingCts = new CancellationTokenSource();
         var token = _trendingCts.Token;
 
-        GitHubModalStatusText.Text = $"Loading Antigravity skills, plugins & MCP servers ({_trendingLanguage})…";
+        var pageSuffix = page > 1 ? $" (Page {page})" : "";
+        GitHubModalStatusText.Text = $"Loading Antigravity skills, plugins & MCP servers ({_trendingLanguage}){pageSuffix}…";
         try
         {
-            var items = await _github.GetAntigravityMcpFeedAsync(_trendingLanguage, token);
+            var items = await _github.GetAntigravityMcpFeedAsync(_trendingLanguage, token, page);
             if (token.IsCancellationRequested) return;
             SetLoadedRepos(items);
             UpdateFeedStatusText("Antigravity skills & MCP repositories");
@@ -1651,16 +1727,17 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task RefreshTrendingAsync()
+    private async Task RefreshTrendingAsync(int page = 1)
     {
         _trendingCts?.Cancel();
         _trendingCts = new CancellationTokenSource();
         var token = _trendingCts.Token;
 
-        GitHubModalStatusText.Text = $"Loading GitHub Trending ({_trendingLanguage}, {_trendingSince})…";
+        var pageSuffix = page > 1 ? $" (Page {page})" : "";
+        GitHubModalStatusText.Text = $"Loading GitHub Trending ({_trendingLanguage}, {_trendingSince}){pageSuffix}…";
         try
         {
-            var items = await _github.GetTrendingAsync(_trendingLanguage, _trendingSince, token);
+            var items = await _github.GetTrendingAsync(_trendingLanguage, _trendingSince, token, page);
             if (token.IsCancellationRequested) return;
             SetLoadedRepos(items);
             UpdateFeedStatusText($"trending repositories ({_trendingSince})");
@@ -1672,7 +1749,7 @@ public partial class MainWindow : Window
         }
     }
 
-    private async Task SearchGitHubReposAsync(string? overrideQuery = null)
+    private async Task SearchGitHubReposAsync(string? overrideQuery = null, int page = 1)
     {
         var query = (overrideQuery ?? GitHubSearchBox.Text).Trim();
         if (string.IsNullOrWhiteSpace(query))
@@ -1685,26 +1762,30 @@ public partial class MainWindow : Window
             }
             else
             {
-                await RefreshCurrentGitHubFeedAsync();
+                await RefreshCurrentGitHubFeedAsync(page);
                 return;
             }
         }
+
+        _activeSearchQuery = query;
 
         _trendingCts?.Cancel();
         _trendingCts = new CancellationTokenSource();
         var token = _trendingCts.Token;
 
-        GitHubModalStatusText.Text = $"Searching GitHub for '{query}'…";
+        var pageSuffix = page > 1 ? $" (Page {page})" : "";
+        GitHubModalStatusText.Text = $"Searching GitHub for '{query}'{pageSuffix}…";
         try
         {
-            var items = await _github.SearchRepositoriesAsync(query, _trendingLanguage, token);
+            var items = await _github.SearchRepositoriesAsync(query, _trendingLanguage, token, page: page);
             if (token.IsCancellationRequested) return;
             SetLoadedRepos(items);
             var hiddenCount = _allLoadedRepos.Count(r => r.IsDownloaded);
+            var pageInfo = page > 1 ? $" • Page {page}" : "";
             if (_hideDownloaded && hiddenCount > 0)
-                GitHubModalStatusText.Text = $"Found {TrendingRepos.Count} fresh repositories matching '{query}' ({hiddenCount} downloaded hidden).";
+                GitHubModalStatusText.Text = $"Found {TrendingRepos.Count} fresh repositories matching '{query}'{pageInfo} ({hiddenCount} downloaded hidden).";
             else
-                GitHubModalStatusText.Text = $"Found {TrendingRepos.Count} repositories matching '{query}'.";
+                GitHubModalStatusText.Text = $"Found {TrendingRepos.Count} repositories matching '{query}'{pageInfo}.";
         }
         catch (OperationCanceledException) { }
         catch (Exception ex)

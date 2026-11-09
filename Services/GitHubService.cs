@@ -92,45 +92,48 @@ public sealed partial class GitHubService
         return ShorthandRepoRegex().IsMatch(trimmed);
     }
 
-    public async Task<IReadOnlyList<GitHubRepoItem>> GetTrendingAsync(string? language, string since, CancellationToken token)
+    public async Task<IReadOnlyList<GitHubRepoItem>> GetTrendingAsync(string? language, string since, CancellationToken token, int page = 1)
     {
-        try
+        if (page == 1)
         {
-            var scraped = await ScrapeTrendingPageAsync(language, since, token);
-            if (scraped.Count > 0)
-                return scraped;
-        }
-        catch
-        {
-            // Fallback to GitHub Search REST API if HTML layout changes or is blocked.
+            try
+            {
+                var scraped = await ScrapeTrendingPageAsync(language, since, token);
+                if (scraped.Count > 0)
+                    return scraped;
+            }
+            catch
+            {
+                // Fallback to GitHub Search REST API if HTML layout changes or is blocked.
+            }
         }
 
-        return await SearchTrendingViaApiAsync(language, since, token);
+        return await SearchTrendingViaApiAsync(language, since, token, page);
     }
 
     /// <summary>
     /// Fetches GitHub repositories that specifically target Windows desktop/apps/games/tools so every card is a real runnable Windows app.
     /// Note: GitHub Search REST API rejects >5 boolean operators and dislikes parentheses around terms.
     /// </summary>
-    public async Task<IReadOnlyList<GitHubRepoItem>> GetWindowsAppsFeedAsync(string? language, CancellationToken token)
+    public async Task<IReadOnlyList<GitHubRepoItem>> GetWindowsAppsFeedAsync(string? language, CancellationToken token, int page = 1)
     {
         var langFilter = !string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase)
             ? $" language:{language}"
             : "";
         var q = $"windows wpf OR winforms OR winui desktop stars:>35{langFilter}";
-        return await SearchRepositoriesCoreAsync(q, token, "★ Windows Ready", perPage: 30);
+        return await SearchRepositoriesCoreAsync(q, token, "★ Windows Ready", perPage: 30, page: page);
     }
 
     /// <summary>
     /// Fetches Static Recompilation game ports and tools (N64Recomp, Zelda64Recomp, Majora's Mask, PS2Recomp, XenonRecomp, B2recomp, etc.).
     /// </summary>
-    public async Task<IReadOnlyList<GitHubRepoItem>> GetRecompFeedAsync(string? language, CancellationToken token)
+    public async Task<IReadOnlyList<GitHubRepoItem>> GetRecompFeedAsync(string? language, CancellationToken token, int page = 1)
     {
         var langFilter = !string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase)
             ? $" language:{language}"
             : "";
         var q = $"n64recomp OR zelda64recomp OR ps2recomp OR xenonrecomp OR recomp in:name,description,topics stars:>10{langFilter}";
-        var raw = await SearchRepositoriesCoreAsync(q, token, "⚡ Recomp Port", perPage: 35);
+        var raw = await SearchRepositoriesCoreAsync(q, token, "⚡ Recomp Port", perPage: 35, page: page);
         return raw
             .Where(item =>
                 !item.Name.Equals("recompose", StringComparison.OrdinalIgnoreCase) &&
@@ -141,13 +144,13 @@ public sealed partial class GitHubService
     /// <summary>
     /// Fetches game decompilation projects & source ports (SM64, Pokeemerald, Pokefirered, Sonic, Ship of Harkinian, OpenGOAL, etc.).
     /// </summary>
-    public async Task<IReadOnlyList<GitHubRepoItem>> GetDecompFeedAsync(string? language, CancellationToken token)
+    public async Task<IReadOnlyList<GitHubRepoItem>> GetDecompFeedAsync(string? language, CancellationToken token, int page = 1)
     {
         var langFilter = !string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase)
             ? $" language:{language}"
             : "";
         var q = $"decomp OR decompilation in:name,description,topics stars:>20{langFilter}";
-        var raw = await SearchRepositoriesCoreAsync(q, token, "🎮 Decomp Project", perPage: 35);
+        var raw = await SearchRepositoriesCoreAsync(q, token, "🎮 Decomp Project", perPage: 35, page: page);
         return raw
             .Where(item =>
                 !item.Name.Equals("decompose", StringComparison.OrdinalIgnoreCase) &&
@@ -158,13 +161,13 @@ public sealed partial class GitHubService
     /// <summary>
     /// Fetches Decompilation & Static Recompilation game/engine ports (combined legacy method).
     /// </summary>
-    public async Task<IReadOnlyList<GitHubRepoItem>> GetDecompRecompFeedAsync(string? language, CancellationToken token)
+    public async Task<IReadOnlyList<GitHubRepoItem>> GetDecompRecompFeedAsync(string? language, CancellationToken token, int page = 1)
     {
         var langFilter = !string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase)
             ? $" language:{language}"
             : "";
         var q = $"n64recomp OR zelda64recomp OR decomp OR recomp in:name,description,topics stars:>15{langFilter}";
-        var raw = await SearchRepositoriesCoreAsync(q, token, "🎮 Decomp / Recomp", perPage: 35);
+        var raw = await SearchRepositoriesCoreAsync(q, token, "🎮 Decomp / Recomp", perPage: 35, page: page);
         return raw
             .Where(item =>
                 !item.Name.Equals("recompose", StringComparison.OrdinalIgnoreCase) &&
@@ -175,27 +178,28 @@ public sealed partial class GitHubService
     /// <summary>
     /// Fetches Antigravity skills, plugins, and compatible MCP servers.
     /// </summary>
-    public async Task<IReadOnlyList<GitHubRepoItem>> GetAntigravityMcpFeedAsync(string? language, CancellationToken token)
+    public async Task<IReadOnlyList<GitHubRepoItem>> GetAntigravityMcpFeedAsync(string? language, CancellationToken token, int page = 1)
     {
         var langFilter = !string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase)
             ? $" language:{language}"
             : "";
         var q = $"antigravity stars:>1{langFilter}";
-        return await SearchRepositoriesCoreAsync(q, token, "🤖 Antigravity / MCP", perPage: 30);
+        return await SearchRepositoriesCoreAsync(q, token, "🤖 Antigravity / MCP", perPage: 30, page: page);
     }
 
     public async Task<IReadOnlyList<GitHubRepoItem>> SearchRepositoriesAsync(
         string query,
         string? language,
         CancellationToken token,
-        string periodLabel = "GitHub Search")
+        string periodLabel = "GitHub Search",
+        int page = 1)
     {
         var sanitized = SanitizeUserSearchQuery(query);
         var q = string.IsNullOrWhiteSpace(sanitized) ? "stars:>100" : sanitized;
         if (!string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase))
             q += $" language:{language}";
 
-        return await SearchRepositoriesCoreAsync(q, token, periodLabel, perPage: 25);
+        return await SearchRepositoriesCoreAsync(q, token, periodLabel, perPage: 25, page: page);
     }
 
     private static string SanitizeUserSearchQuery(string? rawQuery)
@@ -240,13 +244,14 @@ public sealed partial class GitHubService
         string q,
         CancellationToken token,
         string periodLabel,
-        int perPage = 25)
+        int perPage = 25,
+        int page = 1)
     {
-        var cacheKey = $"{q}|{periodLabel}|{perPage}";
+        var cacheKey = $"{q}|{periodLabel}|{perPage}|{page}";
         if (SearchCache.TryGetValue(cacheKey, out var cached) && cached.Expiry > DateTimeOffset.UtcNow)
             return cached.Items;
 
-        var url = $"https://api.github.com/search/repositories?q={Uri.EscapeDataString(q)}&sort=stars&order=desc&per_page={perPage}";
+        var url = $"https://api.github.com/search/repositories?q={Uri.EscapeDataString(q)}&sort=stars&order=desc&per_page={perPage}&page={page}";
         using var response = await Http.GetAsync(url, token);
 
         if (response.StatusCode == HttpStatusCode.UnprocessableEntity)
@@ -254,7 +259,7 @@ public sealed partial class GitHubService
             // Fallback: strip any special qualifiers/characters and retry as plain keywords
             var plain = Regex.Replace(q, @"[^\w\s\-\.#\+]", " ").Trim();
             if (string.IsNullOrWhiteSpace(plain)) plain = "stars:>100";
-            var retryUrl = $"https://api.github.com/search/repositories?q={Uri.EscapeDataString(plain)}&sort=stars&order=desc&per_page={perPage}";
+            var retryUrl = $"https://api.github.com/search/repositories?q={Uri.EscapeDataString(plain)}&sort=stars&order=desc&per_page={perPage}&page={page}";
             using var retryResponse = await Http.GetAsync(retryUrl, token);
             retryResponse.EnsureSuccessStatusCode();
             var retryItems = await ParseSearchResponseAsync(retryResponse, periodLabel, token);
@@ -361,7 +366,7 @@ public sealed partial class GitHubService
         return results;
     }
 
-    private async Task<IReadOnlyList<GitHubRepoItem>> SearchTrendingViaApiAsync(string? language, string since, CancellationToken token)
+    private async Task<IReadOnlyList<GitHubRepoItem>> SearchTrendingViaApiAsync(string? language, string since, CancellationToken token, int page = 1)
     {
         var days = since switch
         {
@@ -374,7 +379,7 @@ public sealed partial class GitHubService
         if (!string.IsNullOrWhiteSpace(language) && !language.Equals("all", StringComparison.OrdinalIgnoreCase))
             q += $" language:{language}";
 
-        return await SearchRepositoriesAsync(q, null, token);
+        return await SearchRepositoriesAsync(q, null, token, "Trending", page: page);
     }
 
     private static (string Hint, string Color) GuessRepoHint(string fullName, string description, string language)

@@ -77,16 +77,27 @@
                                 <RowDefinition Height="*" />
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
-                            <TextBlock Grid.Row="0" Text="WORKSPACE" Foreground="#7F8DA7" FontWeight="Bold" FontSize="10"
-                                       Margin="18,17,18,10" />
+                            <Grid Grid.Row="0" Margin="18,17,14,10">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="WORKSPACE" Foreground="#7F8DA7" FontWeight="Bold" FontSize="10" VerticalAlignment="Center" />
+                                <Button Grid.Column="1" Style="{StaticResource GlassButton}" Content="📁 Projects" Padding="8,3" FontSize="9"
+                                        ToolTip="Recall saved projects" Click="SavedProjectsButton_Click" />
+                            </Grid>
                             <Grid Grid.Row="1" Margin="14,0,14,12">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="7" />
+                                    <ColumnDefinition Width="5" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="5" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Button Grid.Column="0" Style="{StaticResource GlassButton}" Content="Open file" Click="OpenFileButton_Click" />
                                 <Button Grid.Column="2" Style="{StaticResource GlassButton}" Content="Open folder" Click="OpenFolderButton_Click" />
+                                <Button Grid.Column="4" Style="{StaticResource GlassButton}" Content="💾 Save" Click="SaveCurrentAsProject_Click"
+                                        ToolTip="Save current workspace as a permanent recall-able project" />
                             </Grid>
                             <TextBox x:Name="ExplorerSearchBox" Grid.Row="2" Margin="14,0,14,8" FontSize="12"
                                      ToolTip="Filter files" TextChanged="ExplorerSearchBox_TextChanged" />
@@ -115,7 +126,11 @@
                             </ListBox>
                             <Border Grid.Row="4" BorderBrush="#20FFFFFF" BorderThickness="0,1,0,0" Padding="15,11">
                                 <StackPanel>
-                                    <TextBlock x:Name="WorkspaceNameText" Text="No folder open" FontSize="11" Foreground="#9CA9BD" TextTrimming="CharacterEllipsis" />
+                                    <Grid>
+                                        <TextBlock x:Name="WorkspaceNameText" Text="No folder open" FontSize="11" Foreground="#9CA9BD" TextTrimming="CharacterEllipsis" />
+                                        <Button Style="{StaticResource GlassButton}" Content="💾 Save Project" HorizontalAlignment="Right" Padding="6,2" FontSize="9"
+                                                Click="SaveCurrentAsProject_Click" ToolTip="Save this workspace to your permanent Projects library" />
+                                    </Grid>
                                     <TextBlock x:Name="FileCountText" Text="Drop a file or folder here" FontSize="9" Foreground="#5E6F8A" Margin="0,3,0,0" />
                                 </StackPanel>
                             </Border>
@@ -152,6 +167,9 @@
                                     <Button x:Name="GitHubHubButton" Style="{StaticResource GlassButton}" Content="⚡  GitHub" Margin="0,0,8,0"
                                             Background="#2A3E78FF" BorderBrush="#649BFF"
                                             ToolTip="Browse GitHub Trending or paste any GitHub file/repo URL to install, build &amp; run automatically" Click="GitHubHubButton_Click" />
+                                    <Button x:Name="SavedProjectsButton" Style="{StaticResource GlassButton}" Content="📁  Projects" Margin="0,0,8,0"
+                                            Background="#251E3A5F" BorderBrush="#38BDF8" Foreground="#BAE6FD"
+                                            ToolTip="Recall saved projects, workspaces &amp; codebases (or save current)" Click="SavedProjectsButton_Click" />
                                     <Button x:Name="AiStudioButton" Style="{StaticResource GlassButton}" Content="✨  AI Studio" Margin="0,0,8,0"
                                             Background="#33802090" BorderBrush="#B666FF" Foreground="#E2B3FF"
                                             ToolTip="AI Code Refactoring, Theme Overhauls &amp; Assistant (Ctrl+Shift+A)" Click="AiStudioButton_Click" />
@@ -501,8 +519,9 @@
 
                                 <!-- Trending / Search Repository Cards -->
                                 <Grid Grid.Row="3">
-                                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="16,12">
-                                        <ItemsControl ItemsSource="{Binding TrendingRepos}">
+                                    <ScrollViewer x:Name="GitHubReposScrollViewer" VerticalScrollBarVisibility="Auto" Padding="16,12">
+                                        <StackPanel>
+                                            <ItemsControl ItemsSource="{Binding TrendingRepos}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Border CornerRadius="10" Background="#12FFFFFF" BorderBrush="{Binding CardBorderBrush}" BorderThickness="1"
@@ -556,28 +575,49 @@
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
-                                    </ScrollViewer>
+                                        <!-- Bottom Next Page Button inside the card list -->
+                                        <Border Margin="0,12,0,16" HorizontalAlignment="Center">
+                                            <Button x:Name="GitHubBottomNextPageButton" Style="{StaticResource PrimaryButton}"
+                                                    Content="⯆  Load Next Page ▶" Padding="24,9" FontSize="11" FontWeight="Bold"
+                                                    Background="#24306B50" BorderBrush="#4AE28D" Foreground="#A2FFC8"
+                                                    Click="GitHubNextPageButton_Click" ToolTip="Load the next page of repositories" />
+                                        </Border>
+                                    </StackPanel>
+                                </ScrollViewer>
+                            </Grid>
+
+                            <!-- Modal Footer Status, Pagination & Download Location -->
+                            <Border Grid.Row="4" Background="#B80C1524" BorderBrush="#22FFFFFF" BorderThickness="0,1,0,0" Padding="18,9">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                                        <TextBlock Text="📁 Download to:" FontSize="10" Foreground="#889AB5" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                        <TextBlock x:Name="GitHubDownloadFolderText" Text="C:\Users\adria\Desktop\MyCompiler\Downloads" FontSize="10" Foreground="#7DEBFF" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis" MaxWidth="260" />
+                                        <Button Style="{StaticResource GlassButton}" Content="Change…" Padding="8,3" FontSize="9" Click="ChangeDownloadFolder_Click" ToolTip="Choose a custom folder on your PC for downloaded GitHub repositories &amp; files" />
+                                        <Button Style="{StaticResource GlassButton}" Content="Open Folder ↗" Margin="5,0,0,0" Padding="8,3" FontSize="9" Click="OpenDownloadFolder_Click" ToolTip="Open the downloads folder in Windows File Explorer" />
+                                    </StackPanel>
+
+                                    <!-- Pagination Controls -->
+                                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Button x:Name="GitHubPrevPageButton" Style="{StaticResource GlassButton}" Content="◀ Prev" Padding="9,3" FontSize="9" Margin="0,0,6,0"
+                                                Click="GitHubPrevPageButton_Click" ToolTip="Load previous page of repositories" IsEnabled="False" />
+                                        <Border Background="#1CFFFFFF" CornerRadius="5" Padding="9,3" Margin="0,0,6,0">
+                                            <TextBlock x:Name="GitHubPageIndicatorText" Text="Page 1" FontSize="10" FontWeight="Bold" Foreground="#9CE8FF" VerticalAlignment="Center" />
+                                        </Border>
+                                        <Button x:Name="GitHubNextPageButton" Style="{StaticResource PrimaryButton}" Content="Next Page ▶" Padding="11,3" FontSize="9" FontWeight="SemiBold"
+                                                Background="#24306B50" BorderBrush="#4AE28D" Foreground="#A2FFC8"
+                                                Click="GitHubNextPageButton_Click" ToolTip="Load next page of repositories" />
+                                    </StackPanel>
+
+                                    <TextBlock Grid.Column="2" x:Name="GitHubModalStatusText" Text="Select a Trending repository or paste any GitHub URL above."
+                                               FontSize="10" Foreground="#889AB5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" MaxWidth="320" />
                                 </Grid>
-
-                                <!-- Modal Footer Status & Download Location -->
-                                <Border Grid.Row="4" Background="#B80C1524" BorderBrush="#22FFFFFF" BorderThickness="0,1,0,0" Padding="18,9">
-                                    <Grid>
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="Auto" />
-                                            <ColumnDefinition Width="*" />
-                                        </Grid.ColumnDefinitions>
-
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="📁 Download to:" FontSize="10" Foreground="#889AB5" VerticalAlignment="Center" Margin="0,0,6,0" />
-                                            <TextBlock x:Name="GitHubDownloadFolderText" Text="C:\Users\adria\Desktop\MyCompiler\Downloads" FontSize="10" Foreground="#7DEBFF" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,8,0" TextTrimming="CharacterEllipsis" MaxWidth="360" />
-                                            <Button Style="{StaticResource GlassButton}" Content="Change…" Padding="8,3" FontSize="9" Click="ChangeDownloadFolder_Click" ToolTip="Choose a custom folder on your PC for downloaded GitHub repositories &amp; files" />
-                                            <Button Style="{StaticResource GlassButton}" Content="Open Folder ↗" Margin="5,0,0,0" Padding="8,3" FontSize="9" Click="OpenDownloadFolder_Click" ToolTip="Open the downloads folder in Windows File Explorer" />
-                                        </StackPanel>
-
-                                        <TextBlock Grid.Column="1" x:Name="GitHubModalStatusText" Text="Select a Trending repository or paste any GitHub URL above."
-                                                   FontSize="10" Foreground="#889AB5" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10,0,0,0" TextTrimming="CharacterEllipsis" />
-                                    </Grid>
-                                </Border>
+                            </Border>
                             </Grid>
                         </Border>
                     </Border>
@@ -749,6 +789,25 @@
                                                     <TextBlock x:Name="AiGitBranchText" Text="Branch: main" FontSize="10" Foreground="#D5F7E4" FontWeight="SemiBold" />
                                                     <TextBlock x:Name="AiGitStatusText" Text="Scanning git workspace…" FontSize="9" Foreground="#85AB95" Margin="0,2,0,7" TextWrapping="Wrap" />
 
+                                                    <!-- 1-Click Init Button if repository has no .git -->
+                                                    <Button x:Name="AiGitInitButton" Style="{StaticResource PrimaryButton}" Content="⚡ Initialize Git Repository"
+                                                            Background="#2E237E44" BorderBrush="#4AE28D" Foreground="#E0FFE9" Padding="9,4" FontSize="9" FontWeight="SemiBold"
+                                                            Margin="0,0,0,8" Visibility="Collapsed" Click="AiGitInitButton_Click"
+                                                            ToolTip="Initialize Git repository in this folder, configure author, and stage initial commit" />
+
+                                                    <!-- Remote URL setting -->
+                                                    <TextBlock Text="Push Remote / Fork URL" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
+                                                    <Grid Margin="0,0,0,7">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBox x:Name="AiGitRemoteUrlBox" FontSize="10" Padding="6,4" ToolTip="Paste your GitHub fork or repository URL (e.g. https://github.com/your-username/repo.git)" />
+                                                        <Button Grid.Column="1" Style="{StaticResource GlassButton}" Content="Set Remote"
+                                                                Padding="7,3" FontSize="9" Margin="5,0,0,0" Click="AiGitSetRemote_Click"
+                                                                ToolTip="Set or update git origin remote to your personal GitHub fork" />
+                                                    </Grid>
+
                                                     <TextBlock Text="Commit message" FontSize="9" Foreground="#8594AD" Margin="0,0,0,3" />
                                                     <Grid Margin="0,0,0,8">
                                                         <TextBox x:Name="AiGitCommitMsgBox" FontSize="10" Padding="6,4" Text="refactor: modern code cleanup and theme overhaul" />
@@ -874,6 +933,10 @@
                                                         Background="#35166534" BorderBrush="#4ADE80" Foreground="#BBF7D0"
                                                         Padding="9,3" FontSize="9" FontWeight="Bold" Margin="0,0,6,0"
                                                         Click="AiBuildRunAppliedButton_Click" ToolTip="Close AI Studio and immediately compile &amp; run this code" />
+                                                <Button x:Name="AiSaveAsProjectButton" Style="{StaticResource GlassButton}" Content="💾 Save as Project"
+                                                        Background="#251E3A5F" BorderBrush="#38BDF8" Foreground="#BAE6FD"
+                                                        Padding="9,3" FontSize="9" FontWeight="SemiBold" Margin="0,0,6,0"
+                                                        Click="SaveCurrentAsProject_Click" ToolTip="Save this enhanced codebase into your permanent recall-able Projects library" />
                                                 <Button x:Name="AiPostApplyGitForkButton" Style="{StaticResource GlassButton}" Content="🔀 Git Fork &amp; Push"
                                                         Background="#182E6B3E" BorderBrush="#4AE28D" Foreground="#6AF5A5"
                                                         Padding="9,3" FontSize="9" Margin="0,0,6,0"
@@ -885,6 +948,206 @@
                                     </Grid>
                                 </Border>
                             </Grid>
+                        </Border>
+                    </Border>
+
+                    <!-- Recall-able Projects Overlay -->
+                    <Border x:Name="ProjectsOverlay" Grid.ColumnSpan="2" Background="#DD040811" Visibility="Collapsed"
+                            MouseLeftButtonDown="ProjectsOverlay_BackdropClick">
+                        <Border x:Name="ProjectsModalCard" MaxWidth="1100" MaxHeight="780" Margin="24" CornerRadius="14" BorderBrush="#554E88FF" BorderThickness="1"
+                                Background="#F60A101C" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                                MouseLeftButtonDown="ProjectsModalCard_MouseLeftButtonDown" ClipToBounds="True">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <!-- Row 0: Header -->
+                                <Border Grid.Row="0" Background="#C4131A2B" BorderBrush="#26FFFFFF" BorderThickness="0,0,0,1" Padding="20,13">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <Border Width="26" Height="26" CornerRadius="6" Background="#263F7DFF" Margin="0,0,10,0">
+                                                    <TextBlock Text="📁" FontSize="14" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                </Border>
+                                                <TextBlock Text="Recall-able Projects &amp; Workspaces" FontSize="15" FontWeight="Bold" Foreground="#F5F8FF" VerticalAlignment="Center" />
+                                            </StackPanel>
+                                            <TextBlock Text="Recall, open, or run your enhanced and saved projects anytime with 1 click."
+                                                       FontSize="10" Foreground="#889AB5" Margin="36,2,0,0" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Style="{StaticResource PrimaryButton}" Content="➕ Save Current as Project" Padding="12,6" FontSize="10" FontWeight="SemiBold"
+                                                    Background="#2A1E3A5F" BorderBrush="#38BDF8" Foreground="#BAE6FD" Margin="0,0,8,0"
+                                                    Click="SaveCurrentAsProject_Click" ToolTip="Save what is currently in your editor/workspace as a named project" />
+                                            <Button Style="{StaticResource GlassButton}" Content="Open Projects Folder ↗" Padding="10,6" FontSize="10" Margin="0,0,8,0"
+                                                    Click="OpenProjectsFolder_Click" ToolTip="Open the permanent Projects folder in Windows Explorer" />
+                                            <Button Style="{StaticResource IconButton}" Content="✕" Width="32" Height="30"
+                                                    ToolTip="Close (Esc)" Click="CloseProjectsOverlay_Click" />
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Row 1: Search & Filter Bar -->
+                                <Border Grid.Row="1" Background="#600B1526" BorderBrush="#20FFFFFF" BorderThickness="0,0,0,1" Padding="20,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBox x:Name="ProjectsSearchBox" FontSize="11" Padding="10,6"
+                                                 ToolTip="Search projects by name, language, or path" TextChanged="ProjectsSearchBox_TextChanged" />
+                                        <TextBlock Text="Filter saved projects by name or language…" Foreground="#556680" FontSize="11"
+                                                   Margin="12,0,0,0" VerticalAlignment="Center" IsHitTestVisible="False">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Visibility" Value="Collapsed" />
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding Text, ElementName=ProjectsSearchBox}" Value="">
+                                                            <Setter Property="Visibility" Value="Visible" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Grid.Column="1" x:Name="ProjectsCountText" Text="0 projects saved" FontSize="10" Foreground="#7A8CA6" VerticalAlignment="Center" Margin="14,0,0,0" />
+                                    </Grid>
+                                </Border>
+
+                                <!-- Row 2: Projects List -->
+                                <Grid Grid.Row="2">
+                                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20,14">
+                                        <StackPanel>
+                                            <!-- Empty state guide -->
+                                            <Border x:Name="ProjectsEmptyState" CornerRadius="10" Background="#0DFFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1"
+                                                    Padding="28,24" Margin="0,10,0,0" Visibility="Collapsed" HorizontalAlignment="Center">
+                                                <StackPanel MaxWidth="520" HorizontalAlignment="Center">
+                                                    <TextBlock Text="📁 No Saved Projects Yet" FontSize="15" FontWeight="Bold" Foreground="#E5EDF8" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                                                    <TextBlock Text="Whenever you spend time enhancing an open-source repo, refactoring code with AI, or building a script, click 'Save Project' to save it as a recall-able project. It will appear here ready to launch anytime!"
+                                                               FontSize="11" Foreground="#8898B0" TextWrapping="Wrap" TextAlignment="Center" LineHeight="17" />
+                                                    <Button Style="{StaticResource PrimaryButton}" Content="Save Current Workspace as Project" HorizontalAlignment="Center" Margin="0,16,0,0"
+                                                            Padding="14,7" FontSize="11" Click="SaveCurrentAsProject_Click" />
+                                                </StackPanel>
+                                            </Border>
+
+                                            <ItemsControl ItemsSource="{Binding SavedProjects}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border CornerRadius="10" Background="#12FFFFFF" BorderBrush="#25FFFFFF" BorderThickness="1"
+                                                                Padding="15,12" Margin="0,0,0,10">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                        <TextBlock Text="{Binding Name}" FontSize="14" FontWeight="Bold" Foreground="#F0F5FC" VerticalAlignment="Center" />
+                                                                        <Border Background="#2038BDF8" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="5" Padding="7,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding Language}" FontSize="9" FontWeight="Bold" Foreground="#7DD3FC" />
+                                                                        </Border>
+                                                                        <Border Background="#1AFFFFFF" CornerRadius="5" Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding FileCountText}" FontSize="9" Foreground="#98A7BD" />
+                                                                        </Border>
+                                                                        <Border Background="{Binding StatusBadgeColor}" CornerRadius="5" Padding="6,2" Margin="6,0,0,0" VerticalAlignment="Center">
+                                                                            <TextBlock Text="{Binding StatusBadgeText}" FontSize="9" FontWeight="SemiBold" Foreground="{Binding StatusBadgeTextColor}" />
+                                                                        </Border>
+                                                                    </StackPanel>
+                                                                    <TextBlock Text="{Binding Description}" FontSize="11" Foreground="#90A1BC" Margin="0,5,0,5" TextTrimming="CharacterEllipsis" />
+                                                                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                                        <TextBlock Text="📁 " FontSize="9" Foreground="#55657E" />
+                                                                        <TextBlock Text="{Binding FullPath}" FontSize="10" Foreground="#657690" TextTrimming="CharacterEllipsis" MaxWidth="520" />
+                                                                        <TextBlock Text="  •  Last worked on: " FontSize="9" Foreground="#4A586E" Margin="6,0,0,0" />
+                                                                        <TextBlock Text="{Binding LastOpenedText}" FontSize="9" Foreground="#7AE5A5" />
+                                                                    </StackPanel>
+                                                                </StackPanel>
+
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                                    <Button Style="{StaticResource PrimaryButton}" Content="▶ Open Workspace" Padding="12,7" FontSize="10" FontWeight="SemiBold"
+                                                                            Background="#25355580" BorderBrush="#60A5FA" Foreground="#93C5FD" Margin="0,0,6,0"
+                                                                            Tag="{Binding}" Click="ProjectCardOpen_Click" ToolTip="Open this project in MyCompiler" />
+                                                                    <Button Style="{StaticResource PrimaryButton}" Content="⚡ Build &amp; Run" Padding="12,7" FontSize="10" FontWeight="Bold"
+                                                                            Background="#35166534" BorderBrush="#4ADE80" Foreground="#BBF7D0" Margin="0,0,6,0"
+                                                                            Tag="{Binding}" Click="ProjectCardRun_Click" ToolTip="Open and immediately compile &amp; run this project (F5)" />
+                                                                    <Button Style="{StaticResource GlassButton}" Content="📂 Explorer" Padding="9,7" FontSize="10" Margin="0,0,6,0"
+                                                                            Tag="{Binding}" Click="ProjectCardShowExplorer_Click" ToolTip="Show project in Windows File Explorer" />
+                                                                    <Button Style="{StaticResource IconButton}" Content="✕" Width="28" Height="28"
+                                                                            Foreground="#E05555" ToolTip="Remove from recent projects list"
+                                                                            Tag="{Binding}" Click="ProjectCardRemove_Click" />
+                                                                </StackPanel>
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Grid>
+
+                                <!-- Row 3: Footer -->
+                                <Border Grid.Row="3" Background="#B80C1524" BorderBrush="#22FFFFFF" BorderThickness="0,1,0,0" Padding="18,9">
+                                    <Grid>
+                                        <TextBlock x:Name="ProjectsRootLocationText" Text="Projects Root: X:\MyCompiler\Projects" FontSize="10" Foreground="#7A8CA6" VerticalAlignment="Center" />
+                                        <TextBlock Text="Press Esc to close" FontSize="9" Foreground="#55657E" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </Border>
+
+                    <!-- Save Project As Dialog Overlay -->
+                    <Border x:Name="SaveProjectDialogOverlay" Grid.ColumnSpan="2" Background="#EE02060D" Visibility="Collapsed"
+                            MouseLeftButtonDown="SaveProjectDialog_BackdropClick">
+                        <Border MaxWidth="560" CornerRadius="12" BorderBrush="#6638BDF8" BorderThickness="1"
+                                Background="#F60B1220" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Padding="24,20" ClipToBounds="True">
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,14">
+                                    <Border Width="28" Height="28" CornerRadius="6" Background="#2638BDF8" Margin="0,0,10,0">
+                                        <TextBlock Text="💾" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                    </Border>
+                                    <StackPanel>
+                                        <TextBlock Text="Save as Recall-able Project" FontSize="15" FontWeight="Bold" Foreground="#F0F5FC" />
+                                        <TextBlock Text="Save your enhanced code and files into your permanent Projects collection." FontSize="10" Foreground="#859AB5" />
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <TextBlock Text="Project Name" FontSize="10" FontWeight="Bold" Foreground="#A0B2CD" Margin="0,0,0,4" />
+                                <TextBox x:Name="SaveProjectNameBox" FontSize="12" Padding="10,6" Margin="0,0,0,10"
+                                         ToolTip="Name of your saved project folder (e.g. Sherlock-Enhanced)"
+                                         TextChanged="SaveProjectNameBox_TextChanged" />
+
+                                <TextBlock Text="Description / Notes (Optional)" FontSize="10" FontWeight="Bold" Foreground="#A0B2CD" Margin="0,0,0,4" />
+                                <TextBox x:Name="SaveProjectDescBox" FontSize="11" Padding="10,6" Margin="0,0,0,10" Height="50" TextWrapping="Wrap" AcceptsReturn="True"
+                                         ToolTip="Optional notes about tweaks or improvements made" />
+
+                                <Border Background="#15FFFFFF" BorderBrush="#20FFFFFF" BorderThickness="1" CornerRadius="6" Padding="10,8" Margin="0,0,0,16">
+                                    <StackPanel>
+                                        <TextBlock Text="Permanent Destination:" FontSize="9" FontWeight="Bold" Foreground="#7A8CA6" />
+                                        <TextBlock x:Name="SaveProjectDestinationPreview" Text="X:\MyCompiler\Projects\MyProject" FontSize="10" Foreground="#7DD3FC" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" />
+                                    </StackPanel>
+                                </Border>
+
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Name="SaveProjectStatusText" FontSize="10" Foreground="#859AB5" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Style="{StaticResource GlassButton}" Content="Cancel" Padding="14,6" FontSize="10" Margin="0,0,8,0"
+                                            Click="CancelSaveProject_Click" />
+                                    <Button Grid.Column="2" Style="{StaticResource PrimaryButton}" Content="💾 Save Project &amp; Switch" Padding="16,6" FontSize="10" FontWeight="Bold"
+                                            Background="#25355580" BorderBrush="#38BDF8" Foreground="#BAE6FD"
+                                            Click="ConfirmSaveProject_Click" />
+                                </Grid>
+                            </StackPanel>
                         </Border>
                     </Border>
                 </Grid>

@@ -733,11 +733,15 @@ public partial class MainWindow
             }
             else
             {
-                AiGitBranchText.Text = "Not a git repository";
-                AiGitStatusText.Text = "Open a git repository or download a project from GitHub Hub to enable fork & commit features.";
+                AiGitBranchText.Text = "Not a git repository (Initialize below)";
+                AiGitStatusText.Text = "This downloaded folder has no .git repository. Click '⚡ Initialize Git' to track changes and push to your GitHub account.";
+                if (AiGitInitButton is not null) AiGitInitButton.Visibility = Visibility.Visible;
+                if (AiGitRemoteUrlBox is not null) AiGitRemoteUrlBox.Text = "";
                 return;
             }
         }
+
+        if (AiGitInitButton is not null) AiGitInitButton.Visibility = Visibility.Collapsed;
 
         try
         {
@@ -755,14 +759,86 @@ public partial class MainWindow
                 if (!isErr && !string.IsNullOrWhiteSpace(line)) modifiedList.Add(line.Trim());
             }, CancellationToken.None);
 
+            // Fetch remote origin URL
+            var remoteStep = new CommandStep("Get remote", "git", ["remote", "get-url", "origin"], dir);
+            string? remoteUrl = null;
+            await _runner.RunAsync(remoteStep, (line, isErr) =>
+            {
+                if (!isErr && !string.IsNullOrWhiteSpace(line)) remoteUrl = line.Trim();
+            }, CancellationToken.None);
+
+            if (AiGitRemoteUrlBox is not null && !string.IsNullOrWhiteSpace(remoteUrl))
+            {
+                AiGitRemoteUrlBox.Text = remoteUrl;
+            }
+
             AiGitBranchText.Text = $"Branch: {branchName}  ({Path.GetFileName(dir)})";
             AiGitStatusText.Text = modifiedList.Count > 0
-                ? $"{modifiedList.Count} modified file(s):\n" + string.Join("\n", modifiedList.Take(5)) + (modifiedList.Count > 5 ? $"\n... and {modifiedList.Count - 5} more" : "")
+                ? $"{modifiedList.Count} modified / untracked file(s):\n" + string.Join("\n", modifiedList.Take(5)) + (modifiedList.Count > 5 ? $"\n... and {modifiedList.Count - 5} more" : "")
                 : "Working tree clean · All changes committed.";
         }
         catch (Exception ex)
         {
             AiGitStatusText.Text = $"Git query: {ex.Message}";
+        }
+    }
+
+    private async void AiGitInitButton_Click(object sender, RoutedEventArgs e)
+    {
+        var dir = _workspaceRoot ?? (_currentFile is not null ? Path.GetDirectoryName(_currentFile) : null);
+        if (string.IsNullOrWhiteSpace(dir)) return;
+
+        AiStatusText.Text = "Initializing git repository...";
+        AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#38BDF8"));
+
+        try
+        {
+            await _runner.RunAsync(new CommandStep("Git init", "git", ["init"], dir), (_, _) => {}, CancellationToken.None);
+            await _runner.RunAsync(new CommandStep("Git config user", "git", ["config", "user.name", "MyCompiler User"], dir), (_, _) => {}, CancellationToken.None);
+            await _runner.RunAsync(new CommandStep("Git config email", "git", ["config", "user.email", "developer@mycompiler.local"], dir), (_, _) => {}, CancellationToken.None);
+            await _runner.RunAsync(new CommandStep("Git add", "git", ["add", "-A"], dir), (_, _) => {}, CancellationToken.None);
+            await _runner.RunAsync(new CommandStep("Git commit", "git", ["commit", "-m", "Initial commit from MyCompiler"], dir), (_, _) => {}, CancellationToken.None);
+
+            AiStatusText.Text = "✓ Git repository initialized! Ready to set remote and commit.";
+            AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
+
+            await RefreshGitStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            AiStatusText.Text = $"✕ Git init error: {ex.Message}";
+            AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF7070"));
+        }
+    }
+
+    private async void AiGitSetRemote_Click(object sender, RoutedEventArgs e)
+    {
+        var dir = _workspaceRoot ?? (_currentFile is not null ? Path.GetDirectoryName(_currentFile) : null);
+        if (string.IsNullOrWhiteSpace(dir)) return;
+
+        var remoteUrl = AiGitRemoteUrlBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(remoteUrl))
+        {
+            AiStatusText.Text = "Please enter a valid GitHub fork or repository URL.";
+            AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF7070"));
+            return;
+        }
+
+        try
+        {
+            // Remove existing origin if set, then add
+            await _runner.RunAsync(new CommandStep("Remove remote", "git", ["remote", "remove", "origin"], dir), (_, _) => {}, CancellationToken.None);
+            await _runner.RunAsync(new CommandStep("Add remote", "git", ["remote", "add", "origin", remoteUrl], dir), (_, _) => {}, CancellationToken.None);
+
+            AiStatusText.Text = $"✓ Git remote origin set to: {remoteUrl}";
+            AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
+
+            await RefreshGitStatusAsync();
+        }
+        catch (Exception ex)
+        {
+            AiStatusText.Text = $"✕ Failed to set remote: {ex.Message}";
+            AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF7070"));
         }
     }
 
@@ -779,30 +855,84 @@ public partial class MainWindow
     private async void AiGitCommitPush_Click(object sender, RoutedEventArgs e)
     {
         var dir = _workspaceRoot ?? (_currentFile is not null ? Path.GetDirectoryName(_currentFile) : null);
-        if (string.IsNullOrWhiteSpace(dir) || !Directory.Exists(Path.Combine(dir, ".git")))
+        if (string.IsNullOrWhiteSpace(dir))
         {
-            AiStatusText.Text = "Active workspace is not a git repository.";
+            AiStatusText.Text = "No active workspace folder to commit.";
             return;
+        }
+
+        // Auto initialize if needed
+        if (!Directory.Exists(Path.Combine(dir, ".git")))
+        {
+            AiStatusText.Text = "Initializing git repository first...";
+            await _runner.RunAsync(new CommandStep("Git init", "git", ["init"], dir), (_, _) => {}, CancellationToken.None);
+            await _runner.RunAsync(new CommandStep("Git config user", "git", ["config", "user.name", "MyCompiler User"], dir), (_, _) => {}, CancellationToken.None);
+            await _runner.RunAsync(new CommandStep("Git config email", "git", ["config", "user.email", "developer@mycompiler.local"], dir), (_, _) => {}, CancellationToken.None);
         }
 
         var msg = AiGitCommitMsgBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(msg)) msg = "refactor: code modernization and cleanup";
 
-        AiStatusText.Text = "Running git commit & push...";
+        AiStatusText.Text = "Running git add, commit & push...";
         AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#66D9FF"));
 
         try
         {
-            var commitStep = new CommandStep("Git commit", "git", ["commit", "-am", msg], dir);
+            // Ensure identity configured
+            await _runner.RunAsync(new CommandStep("Config user", "git", ["config", "user.name", "MyCompiler User"], dir), (_, _) => {}, CancellationToken.None);
+            await _runner.RunAsync(new CommandStep("Config email", "git", ["config", "user.email", "developer@mycompiler.local"], dir), (_, _) => {}, CancellationToken.None);
+
+            // 1. Stage all files (tracked + new untracked)
+            var addStep = new CommandStep("Git add", "git", ["add", "-A"], dir);
+            await _runner.RunAsync(addStep, (_, _) => {}, CancellationToken.None);
+
+            // 2. Commit
+            var commitStep = new CommandStep("Git commit", "git", ["commit", "-m", msg], dir);
             var commitOut = new StringBuilder();
-            await _runner.RunAsync(commitStep, (l, _) => commitOut.AppendLine(l), CancellationToken.None);
+            var commitRes = await _runner.RunAsync(commitStep, (l, _) => commitOut.AppendLine(l), CancellationToken.None);
 
-            var pushStep = new CommandStep("Git push", "git", ["push"], dir);
+            // 3. Check remote
+            string? remoteUrl = null;
+            await _runner.RunAsync(new CommandStep("Get remote", "git", ["remote", "get-url", "origin"], dir), (l, isErr) =>
+            {
+                if (!isErr && !string.IsNullOrWhiteSpace(l)) remoteUrl = l.Trim();
+            }, CancellationToken.None);
+
+            if (string.IsNullOrWhiteSpace(remoteUrl))
+            {
+                AiStatusText.Text = "✓ Changes committed locally! To upload, enter your GitHub repo/fork URL above and click 'Set Remote', then push.";
+                AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
+                await RefreshGitStatusAsync();
+                return;
+            }
+
+            // 4. Push
+            var pushStep = new CommandStep("Git push", "git", ["push", "-u", "origin", "HEAD"], dir);
             var pushOut = new StringBuilder();
-            await _runner.RunAsync(pushStep, (l, _) => pushOut.AppendLine(l), CancellationToken.None);
+            var pushRes = await _runner.RunAsync(pushStep, (l, _) => pushOut.AppendLine(l), CancellationToken.None);
 
-            AiStatusText.Text = "✓ Changes committed and pushed to git remote!";
-            AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
+            if (pushRes.ExitCode == 0)
+            {
+                AiStatusText.Text = "✓ Changes committed and pushed to git remote!";
+                AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#4AE28D"));
+            }
+            else
+            {
+                var err = pushOut.ToString().Trim();
+                if (err.Contains("Permission to", StringComparison.OrdinalIgnoreCase) || err.Contains("403", StringComparison.OrdinalIgnoreCase))
+                {
+                    AiStatusText.Text = "⚠️ Push rejected (403): You don't have write access to upstream. Paste your own GitHub fork URL above, click 'Set Remote', and push!";
+                }
+                else if (err.Contains("Authentication failed", StringComparison.OrdinalIgnoreCase) || err.Contains("could not read Username", StringComparison.OrdinalIgnoreCase))
+                {
+                    AiStatusText.Text = "⚠️ Authentication failed: Windows Git credentials or Personal Access Token required.";
+                }
+                else
+                {
+                    AiStatusText.Text = $"✕ Push failed: {(err.Length > 85 ? err[..85] + "..." : err)}";
+                }
+                AiStatusText.Foreground = new SolidColorBrush((Color)ColorConverter.ConvertFromString("#FF7070"));
+            }
 
             await RefreshGitStatusAsync();
         }
